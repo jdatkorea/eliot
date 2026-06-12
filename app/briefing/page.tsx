@@ -1,7 +1,7 @@
 "use client";
 
 import { decompressFromEncodedURIComponent } from "lz-string";
-import { useEffect, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import type { Block, Briefing } from "@/lib/engine/types";
 import type { BriefingLinkPayload } from "@/lib/webhook/briefing-urls";
 
@@ -14,6 +14,27 @@ type ViewState =
       variant: "A" | "B";
       variantLabel: string;
     };
+
+function subscribeToHash(onStoreChange: () => void) {
+  window.addEventListener("hashchange", onStoreChange);
+  return () => window.removeEventListener("hashchange", onStoreChange);
+}
+
+function getHashSnapshot() {
+  return window.location.hash;
+}
+
+function getServerHashSnapshot() {
+  return "";
+}
+
+function useLocationHash() {
+  return useSyncExternalStore(
+    subscribeToHash,
+    getHashSnapshot,
+    getServerHashSnapshot,
+  );
+}
 
 function parseHashParams(hash: string): { data: string | null; variant: "A" | "B" } {
   const raw = hash.startsWith("#") ? hash.slice(1) : hash;
@@ -43,6 +64,41 @@ function decodeBriefingPayload(data: string): BriefingLinkPayload {
   };
 }
 
+function resolveViewFromHash(hash: string): ViewState {
+  if (!hash) {
+    return { status: "loading" };
+  }
+
+  try {
+    const { data, variant } = parseHashParams(hash);
+    if (!data) {
+      return {
+        status: "error",
+        message: "URL에 브리핑 데이터가 없습니다.",
+      };
+    }
+
+    const payload = decodeBriefingPayload(data);
+    const fallbackLabel =
+      variant === "B" ? "원거리·확장형" : "근거리·기본형";
+
+    return {
+      status: "ready",
+      briefing: payload.briefing,
+      variant,
+      variantLabel: payload.variantLabel || fallbackLabel,
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message:
+        error instanceof Error
+          ? error.message
+          : "브리핑을 불러오지 못했습니다.",
+    };
+  }
+}
+
 function backupPlaceName(block: Block): string | null {
   if (!block.weather_backup) return null;
   const match = block.weather_backup.reason.match(/우천 시 (.+?)\(으\)로 대체/);
@@ -61,39 +117,8 @@ function dotClassName(dot: Block["dot"]): string {
 }
 
 export default function BriefingPage() {
-  const [view, setView] = useState<ViewState>({ status: "loading" });
-
-  useEffect(() => {
-    try {
-      const { data, variant } = parseHashParams(window.location.hash);
-      if (!data) {
-        setView({
-          status: "error",
-          message: "URL에 브리핑 데이터가 없습니다.",
-        });
-        return;
-      }
-
-      const payload = decodeBriefingPayload(data);
-      const fallbackLabel =
-        variant === "B" ? "원거리·확장형" : "근거리·기본형";
-
-      setView({
-        status: "ready",
-        briefing: payload.briefing,
-        variant,
-        variantLabel: payload.variantLabel || fallbackLabel,
-      });
-    } catch (error) {
-      setView({
-        status: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "브리핑을 불러오지 못했습니다.",
-      });
-    }
-  }, []);
+  const hash = useLocationHash();
+  const view = useMemo(() => resolveViewFromHash(hash), [hash]);
 
   if (view.status === "loading") {
     return (

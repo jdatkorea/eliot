@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import placesFixture from "@/fixtures/places.sample.json";
+import { DEFAULT_APP_CONFIG } from "@/lib/config/app-config";
 import { fetchBriefingData } from "@/lib/supabase/fetch-briefing-data";
 
 describe("fetchBriefingData", () => {
@@ -14,6 +15,7 @@ describe("fetchBriefingData", () => {
 
     expect(data.places).toEqual(placesFixture);
     expect(data.feedback_events).toEqual([]);
+    expect(data.config).toEqual(DEFAULT_APP_CONFIG);
 
     if (originalUrl !== undefined) {
       process.env.NEXT_PUBLIC_SUPABASE_URL = originalUrl;

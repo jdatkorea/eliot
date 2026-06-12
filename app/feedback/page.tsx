@@ -4,25 +4,33 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import type { FailureReason } from "@/lib/engine/types";
 import {
+  DEFAULT_SUBJECT_ID,
+  parseFeedbackLinkParams,
+  toContextTags,
+} from "@/lib/feedback/context";
+import {
   FAILURE_REASON_LABELS,
   FAILURE_REASONS,
   hasValidationErrors,
   validateFeedbackForm,
 } from "@/lib/feedback/validate";
 
-const V0_SUBJECT_ID = "v0-subject";
 const V0_TRIP_ID = "v0-trip";
 
 function FeedbackForm() {
   const searchParams = useSearchParams();
-  const subjectId = searchParams.get("subject_id") ?? V0_SUBJECT_ID;
-  const tripId = searchParams.get("trip_id") ?? V0_TRIP_ID;
+  const linkParams = parseFeedbackLinkParams(searchParams);
+  const subjectId = linkParams.subject_id ?? DEFAULT_SUBJECT_ID;
+  const tripId = linkParams.trip_id ?? V0_TRIP_ID;
 
   const [satisfaction, setSatisfaction] = useState<number | null>(null);
   const [failureReason, setFailureReason] = useState<FailureReason | null>(
     null,
   );
   const [note, setNote] = useState("");
+  const [routeVariant, setRouteVariant] = useState<"A" | "B" | null>(
+    linkParams.route_variant ?? null,
+  );
   const [fieldErrors, setFieldErrors] = useState<{
     satisfaction?: string;
     failure_reason?: string;
@@ -59,6 +67,13 @@ function FeedbackForm() {
           note: note.trim() || null,
           subject_id: subjectId,
           trip_id: tripId,
+          context_tags: toContextTags({
+            mood_tags: linkParams.mood_tags ?? [],
+            mood_intensity: linkParams.mood_intensity,
+            mode: linkParams.mode,
+            return_location: linkParams.return_location,
+            route_variant: routeVariant ?? undefined,
+          }),
         }),
       });
 
@@ -181,6 +196,36 @@ function FeedbackForm() {
               {fieldErrors.failure_reason}
             </p>
           ) : null}
+        </section>
+
+        <section>
+          <h2 className="mb-3 text-base font-semibold">
+            선택한 브리핑 <span className="font-normal text-zinc-500">(선택)</span>
+          </h2>
+          <div className="grid grid-cols-2 gap-2">
+            {(["A", "B"] as const).map((variant) => {
+              const selected = routeVariant === variant;
+              return (
+                <button
+                  key={variant}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() =>
+                    setRouteVariant((current) =>
+                      current === variant ? null : variant,
+                    )
+                  }
+                  className={`min-h-14 rounded-xl border px-4 text-base font-medium transition-colors ${
+                    selected
+                      ? "border-sky-600 bg-sky-50 text-sky-900 dark:bg-sky-950/50 dark:text-sky-100"
+                      : "border-zinc-300 bg-white text-zinc-800 hover:border-sky-400 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                  }`}
+                >
+                  {variant}안
+                </button>
+              );
+            })}
+          </div>
         </section>
 
         <section>

@@ -9,7 +9,11 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:webhook": "tsx scripts/test-webhook.ts"
+    "test:webhook": "tsx scripts/test-webhook.ts",
+    "db:seed": "tsx scripts/seed-supabase.ts",
+    "cms:sync": "tsx scripts/sync-sheets.ts",
+    "cms:sync:dry-run": "tsx scripts/dry-run-sync-validation.ts",
+    "cms:sync:config-dry-run": "tsx scripts/dry-run-config-validation.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.1",
@@ -17,7 +21,8 @@
     "lz-string": "^1.5.0",
     "next": "16.2.9",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -25,11 +30,15 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^11.0.0",
+    "dotenv": "^17.4.2",
+    "googleapis": "^156.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
     "typescript": "^5",
+    "uuid": "^14.0.0",
     "vitest": "^3.2.6"
   }
 }

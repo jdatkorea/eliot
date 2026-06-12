@@ -29,6 +29,36 @@ function parseTimeToMinutes(value: string): number {
   throw new Error(`Invalid time format: ${value}`);
 }
 
+const MOOD_INTENSITY_LOW_THRESHOLD = 30;
+const MOOD_INTENSITY_HIGH_THRESHOLD = 70;
+const MOOD_INTENSITY_INDOOR_THRESHOLD = 15;
+
+export function clampMoodIntensity(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+export function deriveMoodTagsFromIntensity(intensity: number): string[] {
+  const clamped = clampMoodIntensity(intensity);
+  const tags: string[] = [];
+
+  if (clamped < MOOD_INTENSITY_LOW_THRESHOLD) {
+    tags.push("baby_tired");
+    if (clamped < MOOD_INTENSITY_INDOOR_THRESHOLD) {
+      tags.push("indoor_only");
+    }
+  } else if (clamped > MOOD_INTENSITY_HIGH_THRESHOLD) {
+    tags.push("extend_range");
+  } else {
+    tags.push("relaxed_pace");
+  }
+
+  return tags;
+}
+
+function mergeMoodTags(derived: string[], manual: string[]): string[] {
+  return [...new Set([...derived, ...manual])];
+}
+
 export function normalize(req: TripRequest): NormalizedTrip {
   const duration =
     req.start_mode === "fixed"
@@ -37,10 +67,24 @@ export function normalize(req: TripRequest): NormalizedTrip {
 
   const origin = req.origin ?? HOME_ADDRESS;
 
+  const mood_intensity =
+    req.mood_intensity !== undefined
+      ? clampMoodIntensity(req.mood_intensity)
+      : undefined;
+
+  const mood_tags =
+    mood_intensity !== undefined
+      ? mergeMoodTags(
+          deriveMoodTagsFromIntensity(mood_intensity),
+          req.mood_tags,
+        )
+      : req.mood_tags;
+
   return {
     duration,
     origin,
-    mood_tags: req.mood_tags,
+    mood_tags,
+    mood_intensity,
     mode: req.mode,
     return_location: req.return_location ?? origin,
   };

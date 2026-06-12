@@ -1,10 +1,10 @@
 import {
   fillDescTemplate,
   resolveMoodEffects,
-  RAIN_PROB_THRESHOLD,
   weatherKeyFromRainProb,
-} from "@/lib/config/mood-tags.config";
+} from "./apply-config";
 import type {
+  AppConfig,
   Block,
   Briefing,
   GenerateBriefingInput,
@@ -14,27 +14,6 @@ import type {
 } from "./types";
 import { TIME_LABELS } from "./types";
 import { HOME_ADDRESS } from "./normalize";
-
-const ORIGIN_COORDS: Record<string, { lat: number; lng: number }> = {
-  [HOME_ADDRESS]: { lat: 37.382, lng: 126.657 },
-};
-
-const BLOCK_CATEGORY_MAP: Record<TimeLabel, PlaceCategory[]> = {
-  출발: ["view", "cafe"],
-  "도착 후": ["cafe", "view"],
-  오전: ["cafe", "view", "kids"],
-  점심: ["meal", "cafe"],
-  오후: ["activity", "view", "kids"],
-  저녁: ["meal", "cafe"],
-  밤: ["cafe", "view"],
-};
-
-const BASE_TEMPLATES: Record<string, TimeLabel[]> = {
-  short: ["출발", "점심", "오후"],
-  half_day: ["출발", "점심", "오후", "저녁"],
-  full_day: ["출발", "오전", "점심", "오후", "저녁"],
-  multi_day: ["도착 후", "오전", "점심", "오후", "저녁"],
-};
 
 function haversineKm(
   lat1: number,
@@ -51,8 +30,14 @@ function haversineKm(
   return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function resolveOriginCoords(origin: string): { lat: number; lng: number } {
-  return ORIGIN_COORDS[origin] ?? ORIGIN_COORDS[HOME_ADDRESS];
+function resolveOriginCoords(
+  config: AppConfig,
+  origin: string,
+): { lat: number; lng: number } {
+  return (
+    config.origin_coords[origin] ??
+    config.origin_coords[HOME_ADDRESS] ?? { lat: 37.382, lng: 126.657 }
+  );
 }
 
 function deterministicIndex(seed: string, max: number): number {
@@ -64,19 +49,24 @@ function deterministicIndex(seed: string, max: number): number {
   return Math.abs(hash) % max;
 }
 
-function lookupBlockTemplate(duration: number, moodTags: string[]): TimeLabel[] {
+function lookupBlockTemplate(
+  config: AppConfig,
+  duration: number,
+  moodTags: string[],
+): TimeLabel[] {
+  const { base } = config.templates;
   let labels: TimeLabel[];
   if (duration <= 4) {
-    labels = [...BASE_TEMPLATES.short];
+    labels = [...base.short];
   } else if (duration <= 8) {
-    labels = [...BASE_TEMPLATES.half_day];
+    labels = [...base.half_day];
   } else if (duration <= 16) {
-    labels = [...BASE_TEMPLATES.full_day];
+    labels = [...base.full_day];
   } else {
-    labels = [...BASE_TEMPLATES.multi_day];
+    labels = [...base.multi_day];
   }
 
-  const effects = resolveMoodEffects(moodTags);
+  const effects = resolveMoodEffects(config, moodTags);
   const reduction = Math.abs(Math.min(effects.blockCountModifier, 0));
   while (reduction > 0 && labels.length > 2) {
     labels.pop();
@@ -86,16 +76,17 @@ function lookupBlockTemplate(duration: number, moodTags: string[]): TimeLabel[] 
 }
 
 function buildDayPlan(
+  config: AppConfig,
   duration: number,
   moodTags: string[],
 ): { label: string; title: string; blocks: TimeLabel[] }[] {
   if (duration <= 16) {
-    const blocks = lookupBlockTemplate(duration, moodTags);
+    const blocks = lookupBlockTemplate(config, duration, moodTags);
     return [{ label: "1일차", title: "당일 코스", blocks }];
   }
 
   const dayCount = Math.min(3, Math.max(2, Math.ceil(duration / 24)));
-  const dayBlocks = lookupBlockTemplate(8, moodTags);
+  const dayBlocks = lookupBlockTemplate(config, 8, moodTags);
 
   return Array.from({ length: dayCount }, (_, index) => ({
     label: `${index + 1}일차`,
@@ -107,9 +98,10 @@ function buildDayPlan(
   }));
 }
 
-function resolveTransportAdvice(maxDistanceKm: number): string {
-  if (maxDistanceKm <= 40) return "40km 이내 — 자차 이동";
-  if (maxDistanceKm <= 120) return "40~120km — 자차·KTX";
+function resolveTransportAdvice(config: AppConfig, maxDistanceKm: number): string {
+  const { short_km, medium_km } = config.transport_thresholds;
+  if (maxDistanceKm <= short_km) return "40km 이내 — 자차 이동";
+  if (maxDistanceKm <= medium_km) return "40~120km — 자차·KTX";
   return "120km 이상 — 비행기+렌트카";
 }
 
@@ -177,6 +169,7 @@ function selectPlace(
 }
 
 function filterPool(
+  config: AppConfig,
   places: Place[],
   params: {
     mode: "family" | "couple";
@@ -187,8 +180,8 @@ function filterPool(
     excludedCategories: Set<PlaceCategory>;
   },
 ): Place[] {
-  const effects = resolveMoodEffects(params.moodTags);
-  const originCoords = resolveOriginCoords(params.origin);
+  const effects = resolveMoodEffects(config, params.moodTags);
+  const originCoords = resolveOriginCoords(config, params.origin);
 
   return places.filter((place) => {
     if (params.usedPlaceIds.has(place.id)) return false;
@@ -214,6 +207,7 @@ function resolveDot(category: PlaceCategory): Block["dot"] {
 }
 
 function buildChecklist(
+  config: AppConfig,
   selectedPlaces: Place[],
   mode: "family" | "couple",
   rainProb: string,
@@ -221,7 +215,7 @@ function buildChecklist(
   const items = new Set<string>(["여권·신분증", "보조배터리"]);
 
   const numericRain = parseInt(rainProb.replace(/[^0-9]/g, ""), 10);
-  if (Number.isFinite(numericRain) && numericRain >= RAIN_PROB_THRESHOLD) {
+  if (Number.isFinite(numericRain) && numericRain >= config.rain_prob_threshold) {
     items.add("우산·우비");
   }
 
@@ -247,18 +241,18 @@ function defaultWeather(): Briefing["weather"] {
 }
 
 export function generateBriefing(input: GenerateBriefingInput): Briefing {
-  const { normalized, places, feedback_events } = input;
+  const { normalized, places, feedback_events, config } = input;
   const weather = input.weather ?? defaultWeather();
   const destination =
     input.destination ?? places[0]?.destination ?? "인천_근교";
   const dateLabel = input.date_label ?? "2026년 6월 12일(금)";
 
-  const effects = resolveMoodEffects(normalized.mood_tags);
+  const effects = resolveMoodEffects(config, normalized.mood_tags);
   const excludedCategories = recentExcludedCategories(feedback_events);
-  const weatherKey = weatherKeyFromRainProb(weather.rain_prob);
+  const weatherKey = weatherKeyFromRainProb(config, weather.rain_prob);
   const rainNumeric = parseInt(weather.rain_prob.replace(/[^0-9]/g, ""), 10);
 
-  const dayPlan = buildDayPlan(normalized.duration, normalized.mood_tags);
+  const dayPlan = buildDayPlan(config, normalized.duration, normalized.mood_tags);
   const usedPlaceIds = new Set<string>();
   const selectedPlaces: Place[] = [];
 
@@ -266,7 +260,7 @@ export function generateBriefing(input: GenerateBriefingInput): Briefing {
     const blocks: Block[] = [];
 
     day.blocks.forEach((timeLabel, blockIndex) => {
-      const preferredCategories = BLOCK_CATEGORY_MAP[timeLabel];
+      const preferredCategories = config.templates.block_category_map[timeLabel];
       const seed = [
         normalized.duration,
         normalized.origin,
@@ -277,7 +271,7 @@ export function generateBriefing(input: GenerateBriefingInput): Briefing {
         timeLabel,
       ].join("|");
 
-      let candidates = filterPool(places, {
+      let candidates = filterPool(config, places, {
         mode: normalized.mode,
         moodTags: normalized.mood_tags,
         origin: normalized.origin,
@@ -287,7 +281,7 @@ export function generateBriefing(input: GenerateBriefingInput): Briefing {
       });
 
       if (candidates.length === 0) {
-        candidates = filterPool(places, {
+        candidates = filterPool(config, places, {
           mode: normalized.mode,
           moodTags: normalized.mood_tags,
           origin: normalized.origin,
@@ -322,6 +316,7 @@ export function generateBriefing(input: GenerateBriefingInput): Briefing {
 
       const relaxedPrefix = effects.relaxedLabels ? "여유롭게 " : "";
       const desc = fillDescTemplate(
+        config,
         place.category,
         normalized.mood_tags,
         weatherKey,
@@ -339,7 +334,7 @@ export function generateBriefing(input: GenerateBriefingInput): Briefing {
       if (place.is_outdoor) {
         if (
           Number.isFinite(rainNumeric) &&
-          rainNumeric >= RAIN_PROB_THRESHOLD &&
+          rainNumeric >= config.rain_prob_threshold &&
           place.backup_place_id
         ) {
           const backup = places.find((p) => p.id === place.backup_place_id);
@@ -360,14 +355,19 @@ export function generateBriefing(input: GenerateBriefingInput): Briefing {
     return { label: day.label, title: day.title, blocks };
   });
 
-  const originCoords = resolveOriginCoords(normalized.origin);
+  const originCoords = resolveOriginCoords(config, normalized.origin);
   const maxDistance = selectedPlaces.reduce((max, place) => {
     const d = haversineKm(originCoords.lat, originCoords.lng, place.lat, place.lng);
     return Math.max(max, d);
   }, 0);
 
-  const transportAdvice = resolveTransportAdvice(maxDistance);
-  const checklist = buildChecklist(selectedPlaces, normalized.mode, weather.rain_prob);
+  const transportAdvice = resolveTransportAdvice(config, maxDistance);
+  const checklist = buildChecklist(
+    config,
+    selectedPlaces,
+    normalized.mode,
+    weather.rain_prob,
+  );
   checklist.unshift(transportAdvice);
 
   return {

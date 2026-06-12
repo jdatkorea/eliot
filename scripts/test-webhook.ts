@@ -1,6 +1,7 @@
 import { POST } from "@/app/api/webhook/telegram/route";
 import type { TripRequest } from "@/lib/engine/types";
 import { buildTripRequest } from "@/lib/webapp/build-trip-request";
+import { buildTelegramLinkMessage } from "@/lib/webhook/telegram-message";
 
 const mockTripRequest: TripRequest = {
   start_mode: "duration",
@@ -33,10 +34,12 @@ async function runWebhookTest(body: unknown, label: string) {
     ok: boolean;
     urls?: string[];
     labels?: { A: string; B: string };
+    trip_id?: string;
+    feedback_url?: string;
     error?: string;
   };
 
-  if (!response.ok || !result.ok || !result.urls) {
+  if (!response.ok || !result.ok || !result.urls || !result.feedback_url) {
     throw new Error(result.error ?? `웹훅 테스트 실패 (${response.status})`);
   }
 
@@ -44,6 +47,29 @@ async function runWebhookTest(body: unknown, label: string) {
   console.log(result.urls[0]);
   console.log(`Variant B (${result.labels?.B}):`);
   console.log(result.urls[1]);
+  console.log(`Feedback (trip_id=${result.trip_id}):`);
+  console.log(result.feedback_url);
+
+  const telegramPayload = buildTelegramLinkMessage({
+    urlA: result.urls[0],
+    urlB: result.urls[1],
+    labelA: result.labels?.A ?? "",
+    labelB: result.labels?.B ?? "",
+    feedbackUrl: result.feedback_url,
+  });
+
+  console.log("\nTelegram sendMessage payload:");
+  console.log(
+    JSON.stringify(
+      {
+        chat_id: 123456789,
+        ...telegramPayload,
+        disable_web_page_preview: true,
+      },
+      null,
+      2,
+    ),
+  );
 
   return result.urls;
 }

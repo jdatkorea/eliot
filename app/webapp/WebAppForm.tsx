@@ -13,6 +13,12 @@ import { MOOD_TAG_LABELS } from "@/lib/webapp/mood-tag-labels";
 
 type TelegramWebApp = typeof import("@twa-dev/sdk").default;
 
+const MOOD_INTENSITY_PRESETS = [
+  { label: "매우 피곤함", value: 10 },
+  { label: "보통", value: 50 },
+  { label: "활기참", value: 90 },
+] as const;
+
 const DEFAULT_FORM: WebAppFormState = {
   start_mode: "duration",
   departure_time: "09:00",
@@ -21,6 +27,7 @@ const DEFAULT_FORM: WebAppFormState = {
   origin: HOME_ADDRESS,
   return_location: HOME_ADDRESS,
   mood_tags: [],
+  mood_intensity: 50,
   mode: "family",
 };
 
@@ -220,6 +227,47 @@ export default function WebAppForm() {
 
         <section className="webapp-section space-y-3">
           <h2 className="webapp-section-title text-sm font-semibold">기분 · 취향</h2>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="webapp-label text-xs">기분 강도</span>
+              <span className="webapp-intensity-value text-sm font-semibold">
+                {form.mood_intensity}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              className="webapp-slider w-full"
+              value={form.mood_intensity}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  mood_intensity: Number(event.target.value),
+                }))
+              }
+            />
+            <div className="flex flex-wrap gap-2">
+              {MOOD_INTENSITY_PRESETS.map((preset) => (
+                <button
+                  key={preset.value}
+                  type="button"
+                  className={`webapp-chip ${
+                    form.mood_intensity === preset.value ? "webapp-chip-active" : ""
+                  }`}
+                  onClick={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      mood_intensity: preset.value,
+                    }))
+                  }
+                >
+                  {preset.label} ({preset.value}%)
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="flex flex-wrap gap-2">
             {MOOD_TAGS.map((tag) => {
               const selected = form.mood_tags.includes(tag);
@@ -338,6 +386,15 @@ export default function WebAppForm() {
         .webapp-chip-active {
           background: var(--tg-button-color);
           color: var(--tg-button-text-color);
+        }
+
+        .webapp-intensity-value {
+          color: var(--tg-text-color);
+        }
+
+        .webapp-slider {
+          accent-color: var(--tg-button-color);
+          height: 4px;
         }
 
         .webapp-mode-toggle {

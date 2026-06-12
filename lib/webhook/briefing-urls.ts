@@ -3,6 +3,7 @@ import { getFixtureBriefingData } from "@/lib/fixtures/briefing-data";
 import { generateBriefing } from "@/lib/engine/generate-briefing";
 import { normalize } from "@/lib/engine/normalize";
 import type {
+  AppConfig,
   Briefing,
   FeedbackEvent,
   Place,
@@ -27,6 +28,7 @@ export type BriefingLinksResult = {
 export type BriefingDataInput = {
   places: Place[];
   feedback_events: FeedbackEvent[];
+  config: AppConfig;
 };
 
 function buildBriefingUrl(
@@ -49,18 +51,20 @@ export function buildBriefingLinks(
   const normalized = normalize(tripRequest);
   const moodTagsA = normalized.mood_tags;
   const moodTagsB = deriveVariantB(moodTagsA);
-  const { places, feedback_events } = data;
+  const { places, feedback_events, config } = data;
 
   const briefingA = generateBriefing({
     normalized: { ...normalized, mood_tags: moodTagsA },
     places,
     feedback_events,
+    config,
   });
 
   const briefingB = generateBriefing({
     normalized: { ...normalized, mood_tags: moodTagsB },
     places,
     feedback_events,
+    config,
   });
 
   const labelA = variantLabel(moodTagsA);

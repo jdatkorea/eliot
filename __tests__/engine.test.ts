@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import placesFixture from "@/fixtures/places.sample.json";
+import { DEFAULT_APP_CONFIG } from "@/lib/config/app-config";
 import { normalize, hoursBetween } from "@/lib/engine/normalize";
 import { generateBriefing } from "@/lib/engine/generate-briefing";
 import { deriveVariantB, variantLabel } from "@/lib/engine/variant";
@@ -24,6 +25,7 @@ const rainyWeather = {
 };
 
 const feedbackEvents: FeedbackEvent[] = [];
+const appConfig = DEFAULT_APP_CONFIG;
 
 function allBlocks(briefing: ReturnType<typeof generateBriefing>) {
   return briefing.days.flatMap((day) => day.blocks);
@@ -75,12 +77,14 @@ describe("normalize", () => {
       normalized: withReturn,
       places,
       feedback_events: feedbackEvents,
+      config: appConfig,
       weather: rainyWeather,
     });
     const briefingWithout = generateBriefing({
       normalized: withoutReturn,
       places,
       feedback_events: feedbackEvents,
+      config: appConfig,
       weather: rainyWeather,
     });
     expect(briefingWith).toEqual(briefingWithout);
@@ -92,6 +96,7 @@ describe("generateBriefing — 결정론적 순수함수", () => {
     normalized: baseNormalized,
     places,
     feedback_events: feedbackEvents,
+    config: appConfig,
     weather: rainyWeather,
   };
 
@@ -140,6 +145,7 @@ describe("mode 필터", () => {
       normalized: { ...baseNormalized, mode: "family" },
       places,
       feedback_events: feedbackEvents,
+      config: appConfig,
       weather: rainyWeather,
     });
 
@@ -159,6 +165,7 @@ describe("mode 필터", () => {
       },
       places: places.filter((p) => p.id === noKidsPlace.id || p.curtail_count >= 2),
       feedback_events: feedbackEvents,
+      config: appConfig,
       weather: rainyWeather,
     });
 
@@ -170,6 +177,7 @@ describe("mode 필터", () => {
       },
       places: places.filter((p) => p.id === noKidsPlace.id || p.curtail_count >= 2),
       feedback_events: feedbackEvents,
+      config: appConfig,
       weather: rainyWeather,
     });
 
@@ -217,12 +225,14 @@ describe("deriveVariantB / variantLabel", () => {
       normalized: { ...baseNormalized, mood_tags: moodTagsA },
       places,
       feedback_events: feedbackEvents,
+      config: appConfig,
       weather: rainyWeather,
     });
     const briefingB = generateBriefing({
       normalized: { ...baseNormalized, mood_tags: moodTagsB },
       places,
       feedback_events: feedbackEvents,
+      config: appConfig,
       weather: rainyWeather,
     });
 

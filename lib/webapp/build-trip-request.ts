@@ -9,6 +9,7 @@ export type WebAppFormState = {
   origin: string;
   return_location: string;
   mood_tags: string[];
+  mood_intensity: number;
   mode: "family" | "couple";
 };
 
@@ -30,6 +31,7 @@ export function buildTripRequest(state: WebAppFormState): TripRequest {
 
   const shared = {
     mood_tags: state.mood_tags,
+    mood_intensity: state.mood_intensity,
     mode: state.mode,
     origin,
     return_location: returnLocation,
