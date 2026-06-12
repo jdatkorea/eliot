@@ -7,6 +7,7 @@ import {
   DEFAULT_SUBJECT_ID,
   parseFeedbackLinkParams,
   toContextTags,
+  V0_TRIP_ID,
 } from "@/lib/feedback/context";
 import {
   FAILURE_REASON_LABELS,
@@ -14,8 +15,6 @@ import {
   hasValidationErrors,
   validateFeedbackForm,
 } from "@/lib/feedback/validate";
-
-const V0_TRIP_ID = "v0-trip";
 
 function FeedbackForm() {
   const searchParams = useSearchParams();

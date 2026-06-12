@@ -2,6 +2,9 @@ import type { FeedbackContextTags, NormalizedTrip } from "@/lib/engine/types";
 
 export const DEFAULT_SUBJECT_ID = "subin";
 
+/** 피드백 URL에 trip_id가 없을 때 사용하는 고정 UUID (PRD §3 trip_id uuid) */
+export const V0_TRIP_ID = "00000000-0000-4000-8000-000000000001";
+
 export type FeedbackLinkParams = {
   trip_id: string;
   subject_id: string;

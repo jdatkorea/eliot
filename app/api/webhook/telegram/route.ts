@@ -6,8 +6,10 @@ import {
 } from "@/lib/feedback/context";
 import { fetchBriefingData } from "@/lib/supabase/fetch-briefing-data";
 import { buildBriefingLinks } from "@/lib/webhook/briefing-urls";
-import { parseWebhookBody } from "@/lib/webhook/parse-telegram";
+import { parseStartUpdate, parseWebhookBody } from "@/lib/webhook/parse-telegram";
+import { sendStartKeyboard } from "@/lib/webhook/send-start-keyboard";
 import { buildTelegramLinkMessage } from "@/lib/webhook/telegram-message";
+import { verifyTelegramWebhookSecret } from "@/lib/webhook/verify-webhook-secret";
 
 async function sendTelegramLinks(
   chatId: string | number,
@@ -51,8 +53,36 @@ async function sendTelegramLinks(
 }
 
 export async function POST(request: Request) {
+  const unauthorized = verifyTelegramWebhookSecret(request);
+  if (unauthorized) {
+    return unauthorized;
+  }
+
   try {
     const body: unknown = await request.json();
+    const startUpdate = parseStartUpdate(body);
+
+    if (startUpdate) {
+      const appBaseUrl = process.env.APP_BASE_URL;
+      if (!appBaseUrl || !appBaseUrl.startsWith("https://")) {
+        console.error(
+          "APP_BASE_URL이 없거나 https로 시작하지 않습니다:",
+          appBaseUrl ?? "(미설정)",
+        );
+        return Response.json(
+          {
+            ok: false,
+            error:
+              "APP_BASE_URL이 없거나 https로 시작하지 않습니다. Telegram web_app URL은 HTTPS가 필요합니다.",
+          },
+          { status: 400 },
+        );
+      }
+
+      await sendStartKeyboard(startUpdate.chatId, appBaseUrl);
+      return Response.json({ ok: true, action: "start_keyboard" });
+    }
+
     const { tripRequest, chatId } = parseWebhookBody(body);
     const briefingData = await fetchBriefingData();
     const { urlA, urlB, labelA, labelB } = buildBriefingLinks(

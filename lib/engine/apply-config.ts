@@ -25,6 +25,8 @@ export function resolveMoodEffects(
     mealSubtag: null,
   };
 
+  const explicitRadiusCaps: number[] = [];
+
   for (const tag of moodTags) {
     const partial = config.mood_tag_effects[tag];
     if (!partial) continue;
@@ -33,7 +35,7 @@ export function resolveMoodEffects(
       effects.blockCountModifier += partial.blockCountModifier;
     }
     if (partial.radiusCapKm !== undefined) {
-      effects.radiusCapKm = partial.radiusCapKm;
+      explicitRadiusCaps.push(partial.radiusCapKm);
     }
     if (partial.indoorBias !== undefined) {
       effects.indoorBias += partial.indoorBias;
@@ -47,6 +49,10 @@ export function resolveMoodEffects(
     if (partial.mealSubtag) {
       effects.mealSubtag = partial.mealSubtag;
     }
+  }
+
+  if (explicitRadiusCaps.length > 0) {
+    effects.radiusCapKm = Math.min(...explicitRadiusCaps);
   }
 
   return effects;

@@ -16,6 +16,27 @@ export type ParsedWebhookInput = {
   chatId: string | number | undefined;
 };
 
+export type StartUpdate = {
+  chatId: string | number;
+};
+
+export function parseStartUpdate(body: unknown): StartUpdate | null {
+  if (!body || typeof body !== "object" || !("message" in body)) {
+    return null;
+  }
+
+  const update = body as TelegramUpdate;
+  const chatId = update.message?.chat?.id;
+  const rawData = update.message?.web_app_data?.data;
+  const text = (update.message as { text?: string } | undefined)?.text;
+
+  if (rawData || text !== "/start" || chatId === undefined) {
+    return null;
+  }
+
+  return { chatId };
+}
+
 function isTripRequest(value: unknown): value is TripRequest {
   if (!value || typeof value !== "object") return false;
   const req = value as TripRequest;

@@ -1,12 +1,10 @@
-import { DEFAULT_SUBJECT_ID } from "@/lib/feedback/context";
+import { DEFAULT_SUBJECT_ID, V0_TRIP_ID } from "@/lib/feedback/context";
 import { FAILURE_REASONS } from "@/lib/feedback/validate";
 import type {
   FailureReason,
   FeedbackContextTags,
 } from "@/lib/engine/types";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-
-const V0_TRIP_ID = "v0-trip";
 
 type FeedbackPayload = {
   satisfaction: number;
