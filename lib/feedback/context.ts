@@ -105,9 +105,11 @@ export function parseFeedbackLinkParams(
 }
 
 export function toContextTags(
-  params: Pick<
-    FeedbackLinkParams,
-    "mood_tags" | "mood_intensity" | "mode" | "return_location" | "route_variant"
+  params: { mood_tags: string[] } & Partial<
+    Pick<
+      FeedbackLinkParams,
+      "mood_intensity" | "mode" | "return_location" | "route_variant"
+    >
   >,
 ): FeedbackContextTags {
   const tags: FeedbackContextTags = {};
