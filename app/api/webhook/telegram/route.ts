@@ -60,6 +60,22 @@ export async function POST(request: Request) {
 
   try {
     const body: unknown = await request.json();
+
+    // [recv] 수신 update 타입 진단
+    const updateType =
+      body && typeof body === "object"
+        ? "message" in body
+          ? (body as Record<string, unknown>).message &&
+            typeof (body as Record<string, unknown>).message === "object" &&
+            "web_app_data" in ((body as Record<string, unknown>).message as object)
+            ? "web_app_data"
+            : "text" in ((body as Record<string, unknown>).message as object)
+              ? "text"
+              : "other_message"
+          : Object.keys(body).join(",")
+        : "unknown";
+    console.log("[recv] update_type:", updateType);
+
     const startUpdate = parseStartUpdate(body);
 
     if (startUpdate) {
@@ -91,6 +107,12 @@ export async function POST(request: Request) {
       briefingData,
     );
 
+    // [engine] 결과 개수 + source 진단
+    console.log(
+      "[engine] places:", briefingData.places.length,
+      "source:", briefingData.source,
+    );
+
     const tripId = randomUUID();
     const normalized = normalize(tripRequest);
     const feedbackUrl = buildFeedbackUrl(
@@ -109,6 +131,10 @@ export async function POST(request: Request) {
         labelB,
         feedbackUrl,
       );
+      // [send] sendMessage 응답 (성공 시 이 줄 도달)
+      console.log("[send] sendMessage OK chat_id:", resolvedChatId);
+    } else {
+      console.warn("[send] resolvedChatId undefined — sendMessage 스킵");
     }
 
     return Response.json({
