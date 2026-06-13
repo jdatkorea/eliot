@@ -60,8 +60,8 @@ async function main() {
   let failed = false;
 
   for (const [table, rule] of Object.entries(TABLES) as [TableName, TableRule][]) {
-    const serviceCount = await countRows(service, table);
-    const anonCount = await countRows(anon, table);
+    const serviceCount = await countRows(service as unknown as ReturnType<typeof createClient>, table);
+    const anonCount = await countRows(anon as unknown as ReturnType<typeof createClient>, table);
 
     if (serviceCount === null) {
       console.error(`[${table}] service-role SELECT 실패 — 연결 또는 권한 오류`);

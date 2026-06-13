@@ -47,7 +47,7 @@ function distanceFromOrigin(place: Place): number {
 }
 
 function briefingInput(
-  overrides: Partial<Parameters<typeof generateBriefing>[0]> & {
+  overrides: Omit<Partial<Parameters<typeof generateBriefing>[0]>, "normalized"> & {
     normalized?: Partial<ReturnType<typeof normalize>>;
   } = {},
 ) {

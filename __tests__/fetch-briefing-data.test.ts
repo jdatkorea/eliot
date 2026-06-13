@@ -44,7 +44,7 @@ describe("fetchBriefingData", () => {
       }),
     };
     vi.spyOn(serverModule, "createServerSupabaseClient").mockReturnValue(
-      mockClient as ReturnType<typeof serverModule.createServerSupabaseClient>,
+      mockClient as unknown as ReturnType<typeof serverModule.createServerSupabaseClient>,
     );
 
     const data = await fetchBriefingData();

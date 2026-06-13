@@ -82,6 +82,7 @@ const webAppTripRequest = buildTripRequest({
   origin: "인천 송도",
   return_location: "인천 송도",
   mood_tags: ["relaxed_pace", "food_hearty"],
+  mood_intensity: 3,
   mode: "family",
 });
 

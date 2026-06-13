@@ -27,6 +27,7 @@ const durationFormState: WebAppFormState = {
   origin: "인천 송도",
   return_location: "인천 송도",
   mood_tags: ["relaxed_pace", "food_light"],
+  mood_intensity: 3,
   mode: "family",
 };
 
@@ -38,6 +39,7 @@ const fixedFormState: WebAppFormState = {
   origin: "인천 송도",
   return_location: "김포공항",
   mood_tags: ["baby_tired"],
+  mood_intensity: 3,
   mode: "couple",
 };
 
@@ -51,6 +53,7 @@ describe("buildTripRequest (WebApp payload)", () => {
       origin: "인천 송도",
       return_location: "인천 송도",
       mood_tags: ["relaxed_pace", "food_light"],
+      mood_intensity: 3,
       mode: "family",
     });
     expect(payload).not.toHaveProperty("departure_time");
@@ -67,6 +70,7 @@ describe("buildTripRequest (WebApp payload)", () => {
       origin: "인천 송도",
       return_location: "김포공항",
       mood_tags: ["baby_tired"],
+      mood_intensity: 3,
       mode: "couple",
     });
     expect(payload).not.toHaveProperty("duration_hours");
