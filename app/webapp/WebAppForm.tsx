@@ -40,6 +40,7 @@ export default function WebAppForm() {
   const [form, setForm] = useState<WebAppFormState>(DEFAULT_FORM);
   const [isTelegram, setIsTelegram] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const formValid = isWebAppFormValid(form);
 
@@ -69,14 +70,13 @@ export default function WebAppForm() {
     };
   }, []);
 
-  const handleSubmit = useCallback(() => {
-    if (!formValid || submitted) return;
+  const handleSubmit = useCallback(async () => {
+    if (!formValid || submitted || isSubmitting) return;
 
     const payload = buildTripRequest(form);
-    const data = JSON.stringify(payload);
 
     if (!isTelegram) {
-      console.info("[dev] WebApp payload:", data);
+      console.info("[dev] WebApp payload:", JSON.stringify(payload));
       setSubmitted(true);
       return;
     }
@@ -98,24 +98,48 @@ export default function WebAppForm() {
       return;
     }
 
+    setIsSubmitting(true);
     try {
-      webApp.sendData(JSON.stringify(data));
-      setTimeout(() => webApp.close(), 500);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      webApp.showAlert(message);
+      const response = await fetch("/api/journey/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chatId: webApp.initDataUnsafe?.user?.id,
+          data: payload,
+        }),
+      });
+
+      const result = (await response.json()) as { error?: string };
+
+      if (response.ok) {
+        setSubmitted(true);
+        webApp.close();
+        return;
+      }
+
+      webApp.showAlert(result.error ?? "제출에 실패했습니다.");
+    } catch (error: any) {
+      webApp.showAlert(error.message || "알 수 없는 에러가 발생했습니다.");
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [form, formValid, isTelegram, submitted, webApp]);
+  }, [form, formValid, isSubmitting, isTelegram, submitted, webApp]);
 
   useEffect(() => {
     if (!webApp || !isTelegram) return;
 
-    if (formValid && !submitted) {
-      webApp.MainButton.enable();
-    } else {
+    if (isSubmitting) {
+      webApp.MainButton.setText("전송 중...");
       webApp.MainButton.disable();
+    } else {
+      webApp.MainButton.setText("브리핑 생성");
+      if (formValid && !submitted) {
+        webApp.MainButton.enable();
+      } else {
+        webApp.MainButton.disable();
+      }
     }
-  }, [formValid, isTelegram, submitted, webApp]);
+  }, [formValid, isSubmitting, isTelegram, submitted, webApp]);
 
   useEffect(() => {
     if (!webApp || !isTelegram) return;
