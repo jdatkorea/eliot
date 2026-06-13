@@ -99,8 +99,8 @@ export default function WebAppForm() {
     }
 
     try {
-      webApp.sendData(data);
-      webApp.close();
+      webApp.sendData(JSON.stringify(data));
+      setTimeout(() => webApp.close(), 500);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       webApp.showAlert(message);
