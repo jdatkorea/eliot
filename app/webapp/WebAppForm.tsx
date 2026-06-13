@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MOOD_TAGS } from "@/lib/config/mood-tags.config";
 import { HOME_ADDRESS } from "@/lib/engine/normalize";
 import { applyTelegramTheme } from "@/lib/webapp/apply-telegram-theme";
@@ -125,6 +125,11 @@ export default function WebAppForm() {
     }
   }, [form, formValid, isSubmitting, isTelegram, submitted, webApp]);
 
+  const handleSubmitRef = useRef(handleSubmit);
+  useEffect(() => {
+    handleSubmitRef.current = handleSubmit;
+  }, [handleSubmit]);
+
   useEffect(() => {
     if (!webApp || !isTelegram) return;
 
@@ -144,11 +149,18 @@ export default function WebAppForm() {
   useEffect(() => {
     if (!webApp || !isTelegram) return;
 
-    webApp.MainButton.onClick(handleSubmit);
-    return () => {
-      webApp.MainButton.offClick(handleSubmit);
+    const onMainButtonClick = () => {
+      void handleSubmitRef.current();
     };
-  }, [handleSubmit, isTelegram, webApp]);
+
+    webApp.MainButton.onClick(onMainButtonClick);
+    webApp.onEvent("mainButtonClicked", onMainButtonClick);
+
+    return () => {
+      webApp.MainButton.offClick(onMainButtonClick);
+      webApp.offEvent("mainButtonClicked", onMainButtonClick);
+    };
+  }, [isTelegram, webApp]);
 
   return (
     <div className="webapp-root min-h-screen px-4 pb-28 pt-4">
