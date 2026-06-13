@@ -1,17 +1,16 @@
 import { HOME_ADDRESS } from "@/lib/engine/normalize";
 import type { TripRequest } from "@/lib/engine/types";
 
-export type WebAppFormState = {
-  start_mode: "fixed" | "duration";
+type WebAppFormFields = {
   departure_time: string;
   return_time: string;
   duration_hours: number;
   origin: string;
   return_location: string;
-  mood_tags: string[];
-  mood_intensity: number;
-  mode: "family" | "couple";
 };
+
+export type WebAppFormState = WebAppFormFields &
+  Pick<TripRequest, "start_mode" | "mood_tags" | "mood_intensity" | "mode">;
 
 export function isWebAppFormValid(state: WebAppFormState): boolean {
   if (state.mode !== "family" && state.mode !== "couple") {

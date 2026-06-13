@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MOOD_TAGS } from "@/lib/config/mood-tags.config";
 import { HOME_ADDRESS } from "@/lib/engine/normalize";
 import { applyTelegramTheme } from "@/lib/webapp/apply-telegram-theme";
@@ -10,6 +10,7 @@ import {
   type WebAppFormState,
 } from "@/lib/webapp/build-trip-request";
 import { MOOD_TAG_LABELS } from "@/lib/webapp/mood-tag-labels";
+import { submitTripRequest } from "@/lib/webapp/submit-trip-request";
 
 type TelegramWebApp = typeof import("@twa-dev/sdk").default;
 
@@ -59,10 +60,6 @@ export default function WebAppForm() {
       setWebApp(WebApp);
       setIsTelegram(inTelegram);
 
-      if (inTelegram) {
-        WebApp.MainButton.setText("브리핑 생성");
-        WebApp.MainButton.show();
-      }
     });
 
     return () => {
@@ -71,96 +68,52 @@ export default function WebAppForm() {
   }, []);
 
   const handleSubmit = useCallback(async () => {
+    console.log("Submit 시작: 버튼 클릭됨");
     if (!formValid || submitted || isSubmitting) return;
 
-    const payload = buildTripRequest(form);
+    const tripRequest = buildTripRequest(form);
 
     if (!isTelegram) {
-      console.info("[dev] WebApp payload:", JSON.stringify(payload));
+      console.info("[dev] TripRequest:", JSON.stringify(tripRequest));
       setSubmitted(true);
       return;
     }
 
     if (!webApp) return;
 
-    const initData =
-      (typeof window !== "undefined" &&
-        (
-          window as Window & {
-            Telegram?: { WebApp?: { initData?: string } };
-          }
-        ).Telegram?.WebApp?.initData) ||
-      "";
-    if (!initData) {
-      webApp.showAlert(
-        "텔레그램 하단 전용 키보드 버튼을 통해서만 제출할 수 있습니다.",
-      );
-      return;
-    }
-
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/journey/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chatId: webApp.initDataUnsafe?.user?.id,
-          data: payload,
-        }),
-      });
-
-      const result = (await response.json()) as { error?: string };
-
-      if (response.ok) {
-        setSubmitted(true);
-        webApp.close();
-        return;
-      }
-
-      webApp.showAlert(result.error ?? "제출에 실패했습니다.");
-    } catch (error: any) {
-      webApp.showAlert(error.message || "알 수 없는 에러가 발생했습니다.");
+      await submitTripRequest(webApp, tripRequest);
+      setSubmitted(true);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "알 수 없는 에러가 발생했습니다.";
+      webApp.showAlert(message);
     } finally {
       setIsSubmitting(false);
     }
   }, [form, formValid, isSubmitting, isTelegram, submitted, webApp]);
 
-  const handleSubmitRef = useRef(handleSubmit);
-  useEffect(() => {
-    handleSubmitRef.current = handleSubmit;
-  }, [handleSubmit]);
-
   useEffect(() => {
     if (!webApp || !isTelegram) return;
+
+    webApp.MainButton.show();
+    webApp.MainButton.setText(isSubmitting ? "전송 중..." : "브리핑 생성");
 
     if (isSubmitting) {
-      webApp.MainButton.setText("전송 중...");
       webApp.MainButton.disable();
+    } else if (formValid && !submitted) {
+      webApp.MainButton.enable();
     } else {
-      webApp.MainButton.setText("브리핑 생성");
-      if (formValid && !submitted) {
-        webApp.MainButton.enable();
-      } else {
-        webApp.MainButton.disable();
-      }
+      webApp.MainButton.disable();
     }
-  }, [formValid, isSubmitting, isTelegram, submitted, webApp]);
 
-  useEffect(() => {
-    if (!webApp || !isTelegram) return;
-
-    const onMainButtonClick = () => {
-      void handleSubmitRef.current();
-    };
-
-    webApp.MainButton.onClick(onMainButtonClick);
-    webApp.onEvent("mainButtonClicked", onMainButtonClick);
+    webApp.onEvent("mainButtonClicked", handleSubmit);
 
     return () => {
-      webApp.MainButton.offClick(onMainButtonClick);
-      webApp.offEvent("mainButtonClicked", onMainButtonClick);
+      webApp.offEvent("mainButtonClicked", handleSubmit);
     };
-  }, [isTelegram, webApp]);
+  }, [formValid, handleSubmit, isSubmitting, isTelegram, submitted, webApp]);
 
   return (
     <div className="webapp-root min-h-screen px-4 pb-28 pt-4">

@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:harness": "tsx tests/harness.ts",
     "test:webhook": "tsx scripts/test-webhook.ts",
     "db:seed": "tsx scripts/seed-supabase.ts",
     "cms:sync": "tsx scripts/sync-sheets.ts",

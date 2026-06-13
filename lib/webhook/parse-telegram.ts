@@ -1,3 +1,4 @@
+import { isTripRequest, requireTripRequest } from "@/lib/engine/is-trip-request";
 import type { TripRequest } from "@/lib/engine/types";
 
 type TelegramChat = { id: number | string };
@@ -37,16 +38,6 @@ export function parseStartUpdate(body: unknown): StartUpdate | null {
   return { chatId };
 }
 
-function isTripRequest(value: unknown): value is TripRequest {
-  if (!value || typeof value !== "object") return false;
-  const req = value as TripRequest;
-  return (
-    (req.start_mode === "fixed" || req.start_mode === "duration") &&
-    Array.isArray(req.mood_tags) &&
-    (req.mode === "family" || req.mode === "couple")
-  );
-}
-
 export function parseWebhookBody(body: unknown): ParsedWebhookInput {
   if (body && typeof body === "object" && "message" in body) {
     const update = body as TelegramUpdate;
@@ -58,11 +49,9 @@ export function parseWebhookBody(body: unknown): ParsedWebhookInput {
     }
 
     const parsed = JSON.parse(rawData) as unknown;
-    if (!isTripRequest(parsed)) {
-      throw new Error("web_app_data가 유효한 TripRequest가 아닙니다.");
-    }
+    const tripRequest = requireTripRequest(parsed, "web_app_data");
 
-    return { tripRequest: parsed, chatId };
+    return { tripRequest, chatId };
   }
 
   if (isTripRequest(body)) {
