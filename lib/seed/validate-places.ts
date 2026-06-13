@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Place, PlaceCategory } from "@/lib/engine/types";
+import { classifyTags } from "@/lib/config/tag-vocabulary";
 
 export const PLACE_CATEGORIES = [
   "meal",
@@ -161,8 +162,16 @@ export const SheetPlaceSchema = z
       z.enum(["active", "archived"]).optional(),
     ),
   })
-  .transform(
-    (row): Place => ({
+  .transform((row): Place => {
+    const { tags, stroller_friendly, has_nursing_room, unknown } = classifyTags(row.tags);
+
+    if (unknown.length > 0) {
+      console.warn(
+        `[tags] ${row.name}: 화이트리스트 외 태그 제거됨 — ${unknown.join(", ")}`,
+      );
+    }
+
+    return {
       id: row.id,
       destination: row.destination,
       name: row.name,
@@ -177,9 +186,11 @@ export const SheetPlaceSchema = z
       backup_place_id: row.backup_place_id,
       last_verified: row.last_verified,
       notes: row.notes,
-      tags: row.tags,
-    }),
-  );
+      tags,
+      stroller_friendly,
+      has_nursing_room,
+    };
+  });
 
 export type SheetPlaceParseError = {
   rowNumber: number;

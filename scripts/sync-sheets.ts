@@ -181,7 +181,32 @@ export async function syncSheetsToSupabase(): Promise<SyncSheetsResult> {
   const shouldExecute = process.env.SYNC_EXECUTE === "true";
 
   if (shouldExecute) {
+    if (places.length === 0) {
+      throw new Error(
+        "시트에서 유효한 places가 0건입니다. 파싱 오류 또는 시트 범위를 확인하세요.",
+      );
+    }
+
     const supabase = createServiceRoleClient();
+
+    const { data: destRows } = await supabase
+      .from("destinations")
+      .select("destination_id");
+    const knownDestinations = new Set(
+      (destRows ?? []).map((r: { destination_id: string }) => r.destination_id),
+    );
+    if (knownDestinations.size > 0) {
+      const unknownDests = new Set(
+        places
+          .map((p) => p.destination)
+          .filter((d) => !knownDestinations.has(d)),
+      );
+      for (const dest of unknownDests) {
+        console.warn(
+          `[warn] places.destination "${dest}"이 destinations 테이블에 없습니다 — 해당 destination 행을 먼저 추가하세요.`,
+        );
+      }
+    }
 
     if (places.length > 0) {
       const result = await upsertPlaces(supabase, places);

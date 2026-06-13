@@ -92,6 +92,9 @@ export type Place = {
   last_verified: string;
   notes: string | null;
   tags: string[];
+  stroller_friendly?: boolean;
+  has_nursing_room?: boolean;
+  last_social_seen?: string | null;
 };
 
 export type FailureReason =

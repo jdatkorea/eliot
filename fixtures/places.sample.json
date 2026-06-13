@@ -14,7 +14,9 @@
     "backup_place_id": "p002",
     "last_verified": "2026-06-01",
     "notes": "유모차 동선 양호",
-    "tags": []
+    "tags": [],
+    "stroller_friendly": true,
+    "has_nursing_room": false
   },
   {
     "id": "p002",
@@ -31,7 +33,9 @@
     "backup_place_id": null,
     "last_verified": "2026-06-01",
     "notes": null,
-    "tags": []
+    "tags": [],
+    "stroller_friendly": false,
+    "has_nursing_room": false
   },
   {
     "id": "p003",
@@ -48,7 +52,9 @@
     "backup_place_id": "p004",
     "last_verified": "2026-05-20",
     "notes": "모래사장 — 아이 신발 여분",
-    "tags": []
+    "tags": [],
+    "stroller_friendly": false,
+    "has_nursing_room": false
   },
   {
     "id": "p004",
@@ -65,7 +71,9 @@
     "backup_place_id": null,
     "last_verified": "2026-05-20",
     "notes": null,
-    "tags": []
+    "tags": [],
+    "stroller_friendly": false,
+    "has_nursing_room": false
   },
   {
     "id": "p005",
@@ -82,7 +90,9 @@
     "backup_place_id": "p006",
     "last_verified": "2026-06-01",
     "notes": "놀이기구 키 제한 확인",
-    "tags": []
+    "tags": [],
+    "stroller_friendly": true,
+    "has_nursing_room": false
   },
   {
     "id": "p006",
@@ -99,7 +109,9 @@
     "backup_place_id": null,
     "last_verified": "2026-06-01",
     "notes": "아이 의자 있음",
-    "tags": []
+    "tags": [],
+    "stroller_friendly": false,
+    "has_nursing_room": false
   },
   {
     "id": "p007",
@@ -116,7 +128,9 @@
     "backup_place_id": null,
     "last_verified": "2026-05-15",
     "notes": "성인 전용",
-    "tags": []
+    "tags": [],
+    "stroller_friendly": false,
+    "has_nursing_room": false
   },
   {
     "id": "p008",
@@ -133,7 +147,9 @@
     "backup_place_id": null,
     "last_verified": "2026-06-01",
     "notes": "양말 필수",
-    "tags": []
+    "tags": [],
+    "stroller_friendly": true,
+    "has_nursing_room": true
   },
   {
     "id": "p009",
@@ -150,7 +166,9 @@
     "backup_place_id": null,
     "last_verified": "2026-05-25",
     "notes": "회 주문 시 아이 메뉴 별도",
-    "tags": []
+    "tags": [],
+    "stroller_friendly": false,
+    "has_nursing_room": false
   },
   {
     "id": "p010",
@@ -167,6 +185,8 @@
     "backup_place_id": "p009",
     "last_verified": "2026-05-25",
     "notes": null,
-    "tags": []
+    "tags": [],
+    "stroller_friendly": false,
+    "has_nursing_room": false
   }
 ]

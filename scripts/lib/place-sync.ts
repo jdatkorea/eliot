@@ -38,6 +38,8 @@ export function mapPlaceRow(place: Place, idCache: Map<string, string>) {
     last_verified: place.last_verified,
     notes: place.notes,
     tags: place.tags,
+    stroller_friendly: place.stroller_friendly ?? false,
+    has_nursing_room: place.has_nursing_room ?? false,
   };
 }
 
