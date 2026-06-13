@@ -75,14 +75,37 @@ export default function WebAppForm() {
     const payload = buildTripRequest(form);
     const data = JSON.stringify(payload);
 
-    if (webApp?.initData) {
-      webApp.sendData(data);
-      webApp.close();
-    } else {
+    if (!isTelegram) {
       console.info("[dev] WebApp payload:", data);
       setSubmitted(true);
+      return;
     }
-  }, [form, formValid, submitted, webApp]);
+
+    if (!webApp) return;
+
+    const initData =
+      (typeof window !== "undefined" &&
+        (
+          window as Window & {
+            Telegram?: { WebApp?: { initData?: string } };
+          }
+        ).Telegram?.WebApp?.initData) ||
+      "";
+    if (!initData) {
+      webApp.showAlert(
+        "텔레그램 하단 전용 키보드 버튼을 통해서만 제출할 수 있습니다.",
+      );
+      return;
+    }
+
+    try {
+      webApp.sendData(data);
+      webApp.close();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      webApp.showAlert(message);
+    }
+  }, [form, formValid, isTelegram, submitted, webApp]);
 
   useEffect(() => {
     if (!webApp || !isTelegram) return;
