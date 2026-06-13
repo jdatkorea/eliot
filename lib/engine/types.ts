@@ -91,6 +91,7 @@ export type Place = {
   backup_place_id: string | null;
   last_verified: string;
   notes: string | null;
+  tags: string[];
 };
 
 export type FailureReason =

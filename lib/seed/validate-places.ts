@@ -25,6 +25,7 @@ export const PLACE_SHEET_HEADERS = [
   "backup_place_id",
   "last_verified",
   "notes",
+  "tags",
   "status",
 ] as const;
 
@@ -71,6 +72,18 @@ function parseNullableString(value: unknown): string | null {
   return trimmed === "" ? null : trimmed;
 }
 
+/** 시트 셀: 쉼표 구분 태그 → `string[]` (빈 셀 → `[]`) */
+function parseSheetTags(value: unknown): string[] {
+  const trimmed = normalizeCell(value);
+  if (trimmed === "") {
+    return [];
+  }
+  return trimmed
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter((tag) => tag.length > 0);
+}
+
 function parseSheetNumber(
   value: unknown,
   fallback?: number,
@@ -110,6 +123,8 @@ const sheetBoolean = z.preprocess(parseSheetBoolean, z.boolean());
 
 const nullableString = z.preprocess(parseNullableString, z.string().nullable());
 
+const sheetTags = z.preprocess(parseSheetTags, z.array(z.string()));
+
 /**
  * 시트 원시 문자열 입력 → Engine `Place` 계약으로 변환·검증.
  * `status`는 sync 단계에서 archived 필터링에만 사용하며 DB에는 저장하지 않는다.
@@ -140,6 +155,7 @@ export const SheetPlaceSchema = z
     backup_place_id: nullableString,
     last_verified: requiredString("last_verified"),
     notes: nullableString,
+    tags: sheetTags,
     status: z.preprocess(
       (value) => normalizeCell(value) || "active",
       z.enum(["active", "archived"]).optional(),
@@ -161,6 +177,7 @@ export const SheetPlaceSchema = z
       backup_place_id: row.backup_place_id,
       last_verified: row.last_verified,
       notes: row.notes,
+      tags: row.tags,
     }),
   );
 
@@ -212,6 +229,7 @@ export function rowToRawInput(
     backup_place_id: cell("backup_place_id"),
     last_verified: cell("last_verified"),
     notes: cell("notes"),
+    tags: cell("tags"),
     status: cell("status"),
   };
 }

@@ -48,6 +48,7 @@ function buildDummySheetRows(): string[][] {
     "backup_place_id",
     "last_verified",
     "notes",
+    "tags",
     "status",
   ];
 
@@ -77,6 +78,7 @@ function buildDummySheetRows(): string[][] {
       "",
       "2026-06-01",
       "",
+      "",
       "active",
     ]),
   );
@@ -96,6 +98,7 @@ function buildDummySheetRows(): string[][] {
       "https://map.naver.com/missing-id",
       "",
       "2026-06-01",
+      "",
       "",
       "active",
     ]),
@@ -117,6 +120,7 @@ function buildDummySheetRows(): string[][] {
       "",
       "2026-06-01",
       "",
+      "",
       "active",
     ]),
   );
@@ -137,6 +141,7 @@ function buildDummySheetRows(): string[][] {
       "",
       "2026-06-01",
       "",
+      "",
       "active",
     ]),
   );
@@ -156,6 +161,7 @@ function buildDummySheetRows(): string[][] {
       "https://map.naver.com/archived",
       "",
       "2026-06-01",
+      "",
       "",
       "archived",
     ]),

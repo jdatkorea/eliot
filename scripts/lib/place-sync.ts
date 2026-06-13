@@ -37,6 +37,7 @@ export function mapPlaceRow(place: Place, idCache: Map<string, string>) {
       : null,
     last_verified: place.last_verified,
     notes: place.notes,
+    tags: place.tags,
   };
 }
 

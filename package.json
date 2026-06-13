@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "test:harness": "tsx tests/harness.ts",
     "test:webhook": "tsx scripts/test-webhook.ts",
+    "test:engine": "tsx scripts/test-engine.ts",
     "db:seed": "tsx scripts/seed-supabase.ts",
     "cms:sync": "tsx scripts/sync-sheets.ts",
     "cms:sync:dry-run": "tsx scripts/dry-run-sync-validation.ts",

@@ -19,6 +19,10 @@ import {
   type SheetPlaceParseError,
 } from "@/lib/seed/validate-places";
 import {
+  parseGoogleServiceAccountCredentials,
+  resolveSpreadsheetId,
+} from "./lib/google-sheets-auth";
+import {
   parseConfigFromSheet,
   upsertAppConfig,
 } from "./lib/config-sync";
@@ -62,26 +66,11 @@ export type SyncSheetsResult = {
 // Google Sheets client (SEED only)
 // ---------------------------------------------------------------------------
 
-function parseServiceAccountKey(): Record<string, unknown> {
-  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-  if (!raw) {
-    throw new Error(
-      "GOOGLE_SERVICE_ACCOUNT_KEY가 .env.local에 없습니다. 서비스 계정 JSON을 한 줄로 설정하세요.",
-    );
-  }
-
-  try {
-    return JSON.parse(raw) as Record<string, unknown>;
-  } catch {
-    throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY JSON 파싱에 실패했습니다.");
-  }
-}
-
 export async function fetchSheetValues(
   spreadsheetId: string,
   range: string,
 ): Promise<string[][]> {
-  const credentials = parseServiceAccountKey();
+  const credentials = parseGoogleServiceAccountCredentials();
   const auth = new google.auth.GoogleAuth({
     credentials,
     scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
@@ -167,17 +156,11 @@ export function parsePlacesFromSheet(
 // ---------------------------------------------------------------------------
 
 export async function syncSheetsToSupabase(): Promise<SyncSheetsResult> {
-  const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+  const spreadsheetId = resolveSpreadsheetId();
   const placesRange =
-    process.env.GOOGLE_SHEETS_PLACES_RANGE ?? "places!A1:O";
+    process.env.GOOGLE_SHEETS_PLACES_RANGE ?? "places!A1:P";
   const configRange =
     process.env.GOOGLE_SHEETS_CONFIG_RANGE ?? "config!A1:D";
-
-  if (!spreadsheetId) {
-    throw new Error(
-      "GOOGLE_SHEETS_SPREADSHEET_ID가 .env.local에 없습니다.",
-    );
-  }
 
   const [placesRows, configRows] = await Promise.all([
     fetchSheetValues(spreadsheetId, placesRange),
