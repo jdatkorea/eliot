@@ -369,7 +369,7 @@ export function assembleAppConfigFromRows(
     },
   };
 
-  return AppConfigSchema.parse(merged);
+  return AppConfigSchema.parse(merged) as AppConfig;
 }
 
 export function validateRequiredConfigKeys(
