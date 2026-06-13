@@ -15,6 +15,24 @@ import type {
 import { TIME_LABELS } from "./types";
 import { HOME_ADDRESS } from "./normalize";
 
+/** DB 필터 매칭 0건 시 파이프라인 방어용 Joker 스팟 */
+const JOKER_FALLBACK_PLACE: Place = {
+  id: "joker-songdo-hyundai-outlet",
+  destination: "인천_근교",
+  name: "송도 현대프리미엄아울렛",
+  category: "activity",
+  lat: 37.3827,
+  lng: 126.6569,
+  curtail_count: 1,
+  is_outdoor: false,
+  no_kids_zone: false,
+  break_time: null,
+  naver_url: "",
+  backup_place_id: null,
+  last_verified: "2026-06-13",
+  notes: null,
+};
+
 function haversineKm(
   lat1: number,
   lng1: number,
@@ -291,6 +309,10 @@ export function generateBriefing(input: GenerateBriefingInput): Briefing {
         });
       }
 
+      if (candidates.length === 0) {
+        candidates = [JOKER_FALLBACK_PLACE];
+      }
+
       candidates.sort((a, b) => {
         const scoreA = weightedScore(
           a,
@@ -308,8 +330,7 @@ export function generateBriefing(input: GenerateBriefingInput): Briefing {
       });
 
       const topCandidates = candidates.slice(0, Math.min(5, candidates.length));
-      const place = selectPlace(topCandidates, seed);
-      if (!place) return;
+      const place = selectPlace(topCandidates, seed) ?? JOKER_FALLBACK_PLACE;
 
       usedPlaceIds.add(place.id);
       selectedPlaces.push(place);
