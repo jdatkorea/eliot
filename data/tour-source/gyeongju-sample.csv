@@ -1,0 +1,11 @@
+id,destination,name,category,lat,lng,curtail_count,is_outdoor,no_kids_zone,break_time,naver_url,last_verified,notes,tags
+gyeongju-bulguksa,경주,불국사,activity,35.7898,129.3317,5,true,false,,https://map.naver.com/v5/search/불국사,2026-06-01,유네스코 세계문화유산,역사문화
+gyeongju-seokguram,경주,석굴암,activity,35.7949,129.3473,4,true,false,,https://map.naver.com/v5/search/석굴암,2026-06-01,산악 트레킹 포함 — 유모차 불가,역사문화
+gyeongju-tumuli,경주,대릉원 천마총,view,35.8358,129.2155,4,true,false,,https://map.naver.com/v5/search/대릉원,2026-06-01,넓은 잔디 — 유모차친화,역사문화
+gyeongju-anapji,경주,동궁과 월지,view,35.8350,129.2250,5,false,false,09:00-22:00,https://map.naver.com/v5/search/동궁과월지,2026-06-01,야간 조명 인기,뷰맛집
+gyeongju-hwangridan,경주,황리단길,cafe,35.8354,129.2147,4,false,false,,https://map.naver.com/v5/search/황리단길,2026-06-01,주차 혼잡 — 근처 공영주차장 이용,핫플
+gyeongju-gyochon,경주,교촌마을 교리김밥,meal,35.8394,129.2110,3,false,false,,https://map.naver.com/v5/search/교촌마을,2026-06-01,웨이팅 예상,로컬맛집
+gyeongju-cheomsungdae,경주,첨성대,view,35.8343,129.2190,5,true,false,,https://map.naver.com/v5/search/첨성대,2026-06-01,,역사문화
+gyeongju-kids-museum,경주,국립경주박물관 어린이박물관,kids,35.8325,129.2295,3,false,false,09:00-18:00,https://map.naver.com/v5/search/국립경주박물관,2026-06-01,수유실완비 — 유모차친화,역사문화
+gyeongju-bomun-lake,경주,보문호 산책로,activity,35.8552,129.2869,3,true,false,,https://map.naver.com/v5/search/보문호,2026-06-01,유모차친화 — 평탄 산책로,뷰맛집
+gyeongju-haemal-cafe,경주,해말 카페 (보문단지),cafe,35.8540,129.2880,2,false,false,,https://map.naver.com/v5/search/보문단지카페,2026-06-01,,조용한
