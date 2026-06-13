@@ -198,6 +198,74 @@ export type SheetPlaceParseError = {
   reason: string;
 };
 
+export type ParsePlacesResult = {
+  places: Place[];
+  skipped: number;
+  invalid: SheetPlaceParseError[];
+};
+
+function logInvalidRows(errors: SheetPlaceParseError[]): void {
+  for (const error of errors) {
+    console.warn(
+      `[skip] 행 ${error.rowNumber} / ${error.name} / ${error.reason}`,
+    );
+  }
+}
+
+/**
+ * 시트 2D 배열을 순회하며 Zod 검증 후 유효한 `Place[]`만 반환한다.
+ * 컬럼 순서는 헤더 행 기준으로 동적 매핑한다.
+ */
+export function parsePlacesFromSheet(
+  rows: string[][],
+  options?: { logErrors?: boolean },
+): ParsePlacesResult {
+  if (rows.length === 0) {
+    return { places: [], skipped: 0, invalid: [] };
+  }
+
+  const headerIndex = buildHeaderIndex(rows[0]!);
+  const dataRows = rows.slice(1);
+  const places: Place[] = [];
+  const invalid: SheetPlaceParseError[] = [];
+  let skipped = 0;
+
+  for (let i = 0; i < dataRows.length; i++) {
+    const rowNumber = i + 2;
+    const raw = rowToRawInput(headerIndex, dataRows[i]!);
+    const id = (raw.id ?? "").trim();
+
+    if (!id) {
+      skipped += 1;
+      continue;
+    }
+
+    const status = (raw.status ?? "active").trim().toLowerCase();
+    if (status === "archived") {
+      skipped += 1;
+      continue;
+    }
+
+    const result = SheetPlaceSchema.safeParse(raw);
+    if (result.success) {
+      places.push(result.data);
+      continue;
+    }
+
+    invalid.push({
+      rowNumber,
+      name: (raw.name ?? "").trim() || "(이름 없음)",
+      reason: formatZodIssues(result.error.issues),
+    });
+  }
+
+  if (options?.logErrors !== false && invalid.length > 0) {
+    logInvalidRows(invalid);
+  }
+
+  return { places, skipped, invalid };
+}
+
 export function formatZodIssues(issues: z.ZodIssue[]): string {
   return issues
     .map((issue) => {
