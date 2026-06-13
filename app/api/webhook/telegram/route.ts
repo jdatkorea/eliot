@@ -121,6 +121,9 @@ export async function POST(request: Request) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.";
-    return Response.json({ ok: false, error: message }, { status: 400 });
+    console.error("[webhook] 처리 오류:", message);
+
+    // Telegram은 non-2xx를 재시도 트리거로 해석 — 처리 실패는 200 ack 후 로그로만 관측
+    return Response.json({ ok: true, error: message }, { status: 200 });
   }
 }
