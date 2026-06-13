@@ -240,3 +240,48 @@ describe("deriveVariantB / variantLabel", () => {
     expect(briefingA).not.toEqual(briefingB);
   });
 });
+
+describe("buildChecklist — 규칙 기반 준비물", () => {
+  it("family 모드: 필수 준비물 포함, place.notes 미포함", () => {
+    const briefing = generateBriefing({
+      normalized: { ...baseNormalized, mode: "family" },
+      places,
+      feedback_events: feedbackEvents,
+      config: appConfig,
+    });
+
+    const checklistBody = briefing.checklist.slice(1);
+    expect(checklistBody).toContain("기저귀·물티슈");
+    expect(checklistBody).toContain("아이 간식");
+    expect(checklistBody).toContain("여권·신분증");
+    expect(checklistBody).toContain("보조배터리");
+    expect(briefing.checklist.join(" ")).not.toContain("유모차");
+  });
+
+  it("couple 모드: family 전용 준비물 제외", () => {
+    const briefing = generateBriefing({
+      normalized: { ...baseNormalized, mode: "couple" },
+      places,
+      feedback_events: feedbackEvents,
+      config: appConfig,
+    });
+
+    const checklistBody = briefing.checklist.slice(1);
+    expect(checklistBody).not.toContain("기저귀·물티슈");
+    expect(checklistBody).not.toContain("아이 간식");
+    expect(checklistBody).toContain("여권·신분증");
+    expect(checklistBody).toContain("보조배터리");
+  });
+
+  it("강수 확률 임계값 이상: 우산·우비 포함", () => {
+    const briefing = generateBriefing({
+      normalized: { ...baseNormalized, mode: "family" },
+      places,
+      feedback_events: feedbackEvents,
+      config: appConfig,
+      weather: rainyWeather,
+    });
+
+    expect(briefing.checklist).toContain("우산·우비");
+  });
+});

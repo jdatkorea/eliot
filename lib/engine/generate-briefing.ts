@@ -224,28 +224,53 @@ function resolveDot(category: PlaceCategory): Block["dot"] {
   return "default";
 }
 
+/** 모든 모드 공통 기본 준비물 */
+const CHECKLIST_BASE_ITEMS = ["여권·신분증", "보조배터리"] as const;
+
+/** family 모드 필수 준비물 */
+const CHECKLIST_FAMILY_ITEMS = ["기저귀·물티슈", "아이 간식"] as const;
+
+const CHECKLIST_RAIN_ITEM = "우산·우비";
+
+type ChecklistRuleContext = {
+  config: AppConfig;
+  mode: "family" | "couple";
+  rainProb: string;
+};
+
+/**
+ * 유모차·동선 관련 체크리스트 (추후 places 메타데이터 등으로 데이터화 예정).
+ * 현재는 사용하지 않으므로 빈 배열을 반환한다.
+ */
+function resolveStrollerChecklistItems(_ctx: ChecklistRuleContext): string[] {
+  return [];
+}
+
+function resolveRainChecklistItems(ctx: ChecklistRuleContext): string[] {
+  const numericRain = parseInt(ctx.rainProb.replace(/[^0-9]/g, ""), 10);
+  if (Number.isFinite(numericRain) && numericRain >= ctx.config.rain_prob_threshold) {
+    return [CHECKLIST_RAIN_ITEM];
+  }
+  return [];
+}
+
+function resolveFamilyChecklistItems(mode: "family" | "couple"): string[] {
+  if (mode !== "family") return [];
+  return [...CHECKLIST_FAMILY_ITEMS];
+}
+
 function buildChecklist(
   config: AppConfig,
-  selectedPlaces: Place[],
   mode: "family" | "couple",
   rainProb: string,
 ): string[] {
-  const items = new Set<string>(["여권·신분증", "보조배터리"]);
-
-  const numericRain = parseInt(rainProb.replace(/[^0-9]/g, ""), 10);
-  if (Number.isFinite(numericRain) && numericRain >= config.rain_prob_threshold) {
-    items.add("우산·우비");
-  }
-
-  if (mode === "family") {
-    items.add("기저귀·물티슈");
-    items.add("아이 간식");
-  }
-
-  for (const place of selectedPlaces) {
-    if (place.notes) items.add(place.notes);
-  }
-
+  const ctx: ChecklistRuleContext = { config, mode, rainProb };
+  const items = new Set<string>([
+    ...CHECKLIST_BASE_ITEMS,
+    ...resolveFamilyChecklistItems(mode),
+    ...resolveRainChecklistItems(ctx),
+    ...resolveStrollerChecklistItems(ctx),
+  ]);
   return [...items];
 }
 
@@ -383,12 +408,7 @@ export function generateBriefing(input: GenerateBriefingInput): Briefing {
   }, 0);
 
   const transportAdvice = resolveTransportAdvice(config, maxDistance);
-  const checklist = buildChecklist(
-    config,
-    selectedPlaces,
-    normalized.mode,
-    weather.rain_prob,
-  );
+  const checklist = buildChecklist(config, normalized.mode, weather.rain_prob);
   checklist.unshift(transportAdvice);
 
   return {

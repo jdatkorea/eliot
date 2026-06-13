@@ -27,8 +27,6 @@ export function buildTelegramLinkMessage({
   const text = [
     `<a href="${escapeHtmlAttr(urlA)}">A · ${escapeHtml(labelA)} 브리핑 보기</a>`,
     `<a href="${escapeHtmlAttr(urlB)}">B · ${escapeHtml(labelB)} 브리핑 보기</a>`,
-    "",
-    "---",
     `<a href="${escapeHtmlAttr(feedbackUrl)}">여정 종료 후 피드백 남기기</a>`,
   ].join("\n");
 

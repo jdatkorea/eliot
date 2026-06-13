@@ -116,6 +116,7 @@ describe("buildTelegramLinkMessage", () => {
     expect(text).toContain("A · 근거리·기본형 브리핑 보기");
     expect(text).toContain("B · 원거리·확장형 브리핑 보기");
     expect(text).toContain("여정 종료 후 피드백 남기기");
+    expect(text).not.toContain("---");
     expect(text).toContain("trip_id=trip-live");
     expect(text).toContain("mood_tags=relaxed_pace%2Cfood_light");
     expect(text).not.toContain("test-weekend");

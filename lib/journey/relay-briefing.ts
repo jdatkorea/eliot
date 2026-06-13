@@ -66,16 +66,17 @@ export async function relayTripBriefing(
   briefingData?: BriefingData,
 ): Promise<RelayBriefingResult> {
   const data = briefingData ?? (await fetchBriefingData());
-  const { urlA, urlB, labelA, labelB } = buildBriefingLinks(
-    tripRequest,
-    undefined,
-    data,
-  );
-
   const tripId = randomUUID();
   const normalized = normalize(tripRequest);
   const feedbackUrl = buildFeedbackUrl(
     createFeedbackLinkParams(normalized, tripId),
+  );
+
+  const { urlA, urlB, labelA, labelB } = buildBriefingLinks(
+    tripRequest,
+    undefined,
+    data,
+    feedbackUrl,
   );
 
   return {
