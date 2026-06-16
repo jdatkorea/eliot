@@ -11,6 +11,19 @@ import type {
 } from "@/lib/engine/types";
 import { deriveVariantB, variantLabel } from "@/lib/engine/variant";
 
+function formatKstDate(date: Date): string {
+  const f = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    weekday: "short",
+  });
+  const parts = f.formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}년 ${get("month")}월 ${get("day")}일(${get("weekday")})`;
+}
+
 /** 단일 브리핑(레거시) 또는 A/B 듀얼 페이로드 */
 export type BriefingLinkPayload = {
   briefing?: Briefing;
@@ -117,11 +130,14 @@ export function buildBriefingLinks(
   const moodTagsB = deriveVariantB(moodTagsA);
   const { places, feedback_events, config } = data;
 
+  const dateLabel = formatKstDate(new Date());
+
   const briefingA = generateBriefing({
     normalized: { ...normalized, mood_tags: moodTagsA },
     places,
     feedback_events,
     config,
+    date_label: dateLabel,
   });
 
   const briefingB = generateBriefing({
@@ -129,6 +145,7 @@ export function buildBriefingLinks(
     places,
     feedback_events,
     config,
+    date_label: dateLabel,
   });
 
   const labelA = variantLabel(moodTagsA);

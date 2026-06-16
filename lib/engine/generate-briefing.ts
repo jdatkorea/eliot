@@ -288,7 +288,18 @@ export function generateBriefing(input: GenerateBriefingInput): Briefing {
   const weather = input.weather ?? defaultWeather();
   const destination =
     input.destination ?? places[0]?.destination ?? "인천_근교";
-  const dateLabel = input.date_label ?? "2026년 6월 12일(금)";
+  const dateLabel = input.date_label ?? (() => {
+    const f = new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      weekday: "short",
+    });
+    const parts = f.formatToParts(new Date());
+    const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+    return `${get("year")}년 ${get("month")}월 ${get("day")}일(${get("weekday")})`;
+  })();
 
   const effects = resolveMoodEffects(config, normalized.mood_tags);
   const excludedCategories = recentExcludedCategories(feedback_events);
