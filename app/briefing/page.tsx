@@ -1,7 +1,7 @@
 "use client";
 
 import { decompressFromEncodedURIComponent } from "lz-string";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import type { Block, Briefing } from "@/lib/engine/types";
 import {
   resolveBriefingPayload,
@@ -133,11 +133,6 @@ function actionButtonStateClass(selected: boolean): string {
 export default function BriefingPage() {
   const hash = useLocationHash();
   const view = useMemo(() => resolveViewFromHash(hash), [hash]);
-  const [overrideVariant, setOverrideVariant] = useState<"A" | "B" | null>(null);
-
-  useEffect(() => {
-    setOverrideVariant(null);
-  }, [hash]);
 
   if (view.status === "loading") {
     return (
@@ -155,9 +150,9 @@ export default function BriefingPage() {
     );
   }
 
-  const variant = overrideVariant ?? view.variant;
+  const variant = view.variant;
   const { briefing, variantLabel } = selectBriefing(view, variant);
-  const showNav = Boolean(view.dual || view.feedbackUrl);
+  const showNav = Boolean(view.feedbackUrl);
 
   return (
     <div className="flex h-dvh max-h-dvh flex-col overflow-hidden bg-slate-50 text-slate-900 leading-snug">
@@ -243,36 +238,12 @@ export default function BriefingPage() {
             className="flex shrink-0 flex-col gap-2"
             aria-label="다음 행동"
           >
-            {view.dual
-              ? (["A", "B"] as const).map((option) => {
-                  const selected = variant === option;
-                  const label =
-                    option === "A" ? view.dual!.labelA : view.dual!.labelB;
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() => setOverrideVariant(option)}
-                      className={`${actionButtonClass} ${actionButtonStateClass(selected)}`}
-                    >
-                      <span className="block">{option} · {label}</span>
-                      <span className="font-normal text-slate-500">
-                        브리핑 보기
-                      </span>
-                    </button>
-                  );
-                })
-              : null}
-
-            {view.feedbackUrl ? (
-              <a
-                href={view.feedbackUrl}
-                className={`${actionButtonClass} ${actionButtonStateClass(false)}`}
-              >
-                <span className="block">여정 종료 후 피드백 남기기</span>
-              </a>
-            ) : null}
+            <a
+              href={view.feedbackUrl}
+              className={`${actionButtonClass} ${actionButtonStateClass(false)}`}
+            >
+              <span className="block">여정 종료 후 피드백 남기기</span>
+            </a>
           </nav>
         ) : null}
       </div>
