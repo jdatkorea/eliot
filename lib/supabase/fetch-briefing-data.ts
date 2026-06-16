@@ -47,6 +47,13 @@ async function fetchFromSupabase(): Promise<BriefingData> {
   const configRows = configResult.data ?? [];
   const config = safeAppConfigFromDbRows(configRows);
 
+  if (configRows.length === 0) {
+    console.warn(
+      "[fetchBriefingData] app_config 0행 — DEFAULT_APP_CONFIG 폴백 사용 중. " +
+      "supabase/migrations/20260616_app_config_seed.sql 을 실행하여 시딩하세요.",
+    );
+  }
+
   return {
     places: (placesResult.data ?? []) as Place[],
     feedback_events: (feedbackResult.data ?? []) as FeedbackEvent[],
