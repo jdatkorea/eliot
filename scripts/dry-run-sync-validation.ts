@@ -7,8 +7,10 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Place } from "@/lib/engine/types";
-import { PLACE_SHEET_HEADERS } from "@/lib/seed/validate-places";
-import { parsePlacesFromSheet } from "./sync-sheets";
+import {
+  PLACE_SHEET_HEADERS,
+  parsePlacesFromSheet,
+} from "@/lib/seed/validate-places";
 
 type FixturePlace = Place & { status?: string };
 
