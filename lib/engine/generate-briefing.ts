@@ -112,7 +112,9 @@ function blocksFromCourseDays(
 ): { label: string; title: string; blocks: Block[] }[] {
   const { normalized, config } = input;
   const moodTags = normalized.mood_tags;
-  const timeLabels = halfDayLabels(config, moodTags);
+  const timeLabels = halfDayLabels(config, moodTags, {
+    duration: normalized.duration,
+  });
   const relaxedPrefix = resolveMoodEffects(config, moodTags).relaxedLabels
     ? "여유롭게 "
     : "";
@@ -177,6 +179,7 @@ export function generateBriefing(input: GenerateBriefingInput): Briefing {
 
   const multiDay = generateMultiDayCourse({
     duration: resolveTripDuration(normalized.trip_days),
+    courseOptions: { duration: normalized.duration },
     places,
     config,
     destination: homeRegion,

@@ -7,8 +7,38 @@ import type {
   TimeLabel,
 } from "./types";
 
-/** 하루 코스 기준 운영 시간 (5시간) */
-export const COURSE_BLOCK_HOURS = 5;
+/** 하루 코스 기본 운영 시간 (시간) */
+export const DEFAULT_COURSE_DURATION_HOURS = 5;
+
+/** @deprecated {@link DEFAULT_COURSE_DURATION_HOURS} 사용 */
+export const COURSE_BLOCK_HOURS = DEFAULT_COURSE_DURATION_HOURS;
+
+export type CourseOptions = {
+  /** 하루 코스 운영 시간(시간) — 템플릿·시드 분기에 사용 */
+  duration: number;
+};
+
+export const DEFAULT_COURSE_OPTIONS: CourseOptions = {
+  duration: DEFAULT_COURSE_DURATION_HOURS,
+};
+
+type TimeTemplateKey = keyof AppConfig["templates"]["base"];
+
+export function resolveTimeTemplateKey(durationHours: number): TimeTemplateKey {
+  if (durationHours <= 4) return "short";
+  if (durationHours <= 6) return "half_day";
+  return "full_day";
+}
+
+function resolveCourseOptions(
+  courseOptions?: CourseOptions,
+): CourseOptions {
+  const duration = courseOptions?.duration ?? DEFAULT_COURSE_OPTIONS.duration;
+  if (!Number.isFinite(duration) || duration <= 0) {
+    return DEFAULT_COURSE_OPTIONS;
+  }
+  return { duration };
+}
 
 export type TripDurationDays = 1 | 2 | 3;
 
@@ -38,6 +68,8 @@ export type GenerateCourseParams = {
   mode: "family" | "couple";
   mood_tags: string[];
   origin?: string;
+  /** 하루 운영 시간 등 코스 생성 옵션 */
+  courseOptions?: CourseOptions;
   /** 이전 일차에서 방문한 장소 — 중복 방지 */
   excludeIds?: Set<string>;
   /** 0-based 일차 인덱스 (시드·템플릿 분기) */
@@ -80,8 +112,14 @@ function deterministicIndex(seed: string, max: number): number {
   return Math.abs(hash) % max;
 }
 
-export function halfDayLabels(config: AppConfig, moodTags: string[]): TimeLabel[] {
-  const labels = [...config.templates.base.half_day];
+export function halfDayLabels(
+  config: AppConfig,
+  moodTags: string[],
+  courseOptions: CourseOptions = DEFAULT_COURSE_OPTIONS,
+): TimeLabel[] {
+  const resolved = resolveCourseOptions(courseOptions);
+  const templateKey = resolveTimeTemplateKey(resolved.duration);
+  const labels = [...config.templates.base[templateKey]];
   const effects = resolveMoodEffects(config, moodTags);
   const reduction = Math.abs(Math.min(effects.blockCountModifier, 0));
   while (reduction > 0 && labels.length > 2) {
@@ -230,14 +268,16 @@ export function generateCourse(params: GenerateCourseParams): GenerateCourseResu
     mode,
     mood_tags,
     origin = "",
+    courseOptions,
     excludeIds,
     dayIndex = 0,
     feedback_events = [],
   } = params;
 
+  const resolvedCourseOptions = resolveCourseOptions(courseOptions);
   const effects = resolveMoodEffects(config, mood_tags);
   const excludedCategories = recentExcludedCategories(feedback_events);
-  const timeLabels = halfDayLabels(config, mood_tags);
+  const timeLabels = halfDayLabels(config, mood_tags, resolvedCourseOptions);
   const excludeSet = excludeIds ?? new Set<string>();
   const blockUsedIds = new Set<string>();
   const course: Place[] = [];
@@ -248,7 +288,7 @@ export function generateCourse(params: GenerateCourseParams): GenerateCourseResu
     const timeLabel = timeLabels[blockIndex]!;
     const preferredCategories = config.templates.block_category_map[timeLabel];
     const seed = [
-      COURSE_BLOCK_HOURS,
+      resolvedCourseOptions.duration,
       origin,
       mood_tags.join(","),
       mode,

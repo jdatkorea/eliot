@@ -135,6 +135,28 @@ describe("parseWebhookBody (Telegram web_app_data)", () => {
       ),
     ).toThrow("유효한 TripRequest");
   });
+
+  it("쿼리 duration으로 TripRequest 운영 시간을 덮어쓴다", () => {
+    const tripRequest = buildTripRequest(defaultFormState);
+    const request = new Request(
+      "http://localhost/api/webhook/telegram?duration=6",
+      { method: "POST" },
+    );
+    const result = parseWebhookBody(wrapTelegramUpdate(tripRequest), request);
+
+    expect(result.tripRequest.duration_hours).toBe(6);
+    expect(normalize(result.tripRequest).duration).toBe(6);
+  });
+
+  it("페이로드 최상위 duration으로 TripRequest를 덮어쓴다", () => {
+    const tripRequest = buildTripRequest(defaultFormState);
+    const result = parseWebhookBody({
+      duration_hours: 7,
+      data: tripRequest,
+    });
+
+    expect(result.tripRequest.duration_hours).toBe(7);
+  });
 });
 
 describe("WebApp 모바일 레이아웃 불변식", () => {

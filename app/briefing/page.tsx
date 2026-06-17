@@ -1,7 +1,7 @@
 "use client";
 
 import { decompressFromEncodedURIComponent } from "lz-string";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import DashboardView from "@/lib/admin/DashboardView";
 import { useIsAdmin } from "@/lib/admin/useIsAdmin";
 import {
@@ -10,6 +10,11 @@ import {
   formatDestinationLabel,
 } from "@/lib/engine/format-briefing";
 import type { Block, Briefing } from "@/lib/engine/types";
+import {
+  readCourseState,
+  writeCourseState,
+  type StoredCourseState,
+} from "@/lib/webapp/course-state-storage";
 import {
   resolveBriefingPayload,
   type BriefingLinkPayload,
@@ -131,6 +136,9 @@ function selectBriefing(
 const actionButtonClass =
   "block w-full rounded border px-2 py-1.5 text-left text-[10px] font-semibold leading-tight transition-colors";
 
+const swapButtonClass =
+  "shrink-0 rounded border border-slate-200 bg-white px-1.5 py-px text-[10px] font-semibold text-slate-600 transition-colors hover:border-indigo-300 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-50";
+
 /** 사령관 Telegram user id — TMA initDataUnsafe.user.id 와 일치해야 함 */
 const COMMANDER_TELEGRAM_ID = 123456789;
 
@@ -140,11 +148,118 @@ function actionButtonStateClass(selected: boolean): string {
     : "border-slate-200 bg-slate-50 text-slate-700";
 }
 
+function buildStoredCourseState(
+  briefing: Briefing,
+  variant: "A" | "B",
+): StoredCourseState {
+  return {
+    briefing,
+    variant,
+    destination: briefing.destination,
+    mode: briefing.context_meta?.prior_trip_feedback?.mode ?? "family",
+    mood_tags: briefing.context_meta?.prior_trip_feedback?.mood_tags ?? [],
+    saved_at: new Date().toISOString(),
+  };
+}
+
 export default function BriefingPage() {
   const hash = useLocationHash();
   const view = useMemo(() => resolveViewFromHash(hash), [hash]);
   const isAdmin = useIsAdmin(COMMANDER_TELEGRAM_ID);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [activeBriefing, setActiveBriefing] = useState<Briefing | null>(null);
+  const [swapTarget, setSwapTarget] = useState<string | null>(null);
+  const [swapMessage, setSwapMessage] = useState<string | null>(null);
+
+  const readyView = view.status === "ready" ? view : null;
+  const variant = readyView?.variant ?? "A";
+
+  useEffect(() => {
+    setActiveBriefing(null);
+    setSwapMessage(null);
+  }, [hash]);
+
+  const selectedBriefing = useMemo(() => {
+    if (!readyView) return null;
+    return selectBriefing(
+      activeBriefing
+        ? { ...readyView, briefing: activeBriefing }
+        : readyView,
+      variant,
+    ).briefing;
+  }, [activeBriefing, readyView, variant]);
+
+  useEffect(() => {
+    if (!selectedBriefing) return;
+    void writeCourseState(buildStoredCourseState(selectedBriefing, variant));
+  }, [selectedBriefing, variant]);
+
+  const handleSwapSpot = useCallback(
+    async (dayIndex: number, blockIndex: number) => {
+      const targetKey = `${dayIndex}-${blockIndex}`;
+      setSwapTarget(targetKey);
+      setSwapMessage(null);
+
+      try {
+        const stored =
+          (await readCourseState()) ??
+          (selectedBriefing
+            ? buildStoredCourseState(selectedBriefing, variant)
+            : null);
+
+        if (!stored) {
+          setSwapMessage("코스 상태를 불러오지 못했습니다.");
+          return;
+        }
+
+        const response = await fetch("/api/course/swap", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            dayIndex,
+            blockIndex,
+            state: stored,
+          }),
+        });
+
+        const result = (await response.json()) as {
+          ok: boolean;
+          swapped?: boolean;
+          briefing?: Briefing;
+          state?: StoredCourseState;
+          message?: string;
+          error?: string;
+        };
+
+        if (!response.ok || !result.ok) {
+          setSwapMessage(result.error ?? "장소 교체에 실패했습니다.");
+          return;
+        }
+
+        if (result.briefing) {
+          setActiveBriefing(result.briefing);
+        }
+        if (result.state) {
+          await writeCourseState(result.state);
+        }
+
+        setSwapMessage(
+          result.swapped
+            ? "다른 장소로 교체되었습니다."
+            : (result.message ?? "교체 가능한 장소가 없습니다."),
+        );
+      } catch (error) {
+        setSwapMessage(
+          error instanceof Error
+            ? error.message
+            : "장소 교체 중 오류가 발생했습니다.",
+        );
+      } finally {
+        setSwapTarget(null);
+      }
+    },
+    [selectedBriefing, variant],
+  );
 
   if (view.status === "loading") {
     return (
@@ -162,8 +277,20 @@ export default function BriefingPage() {
     );
   }
 
-  const variant = view.variant;
-  const { briefing, variantLabel } = selectBriefing(view, variant);
+  const { briefing, variantLabel } = useMemo(() => {
+    if (view.status !== "ready") {
+      return { briefing: null, variantLabel: "" };
+    }
+    return selectBriefing(
+      activeBriefing ? { ...view, briefing: activeBriefing } : view,
+      view.variant,
+    );
+  }, [activeBriefing, view]);
+
+  if (!briefing) {
+    return null;
+  }
+
   const contextLines = getBriefingContextLines(briefing);
   const showNav = Boolean(view.feedbackUrl);
 
@@ -181,7 +308,7 @@ export default function BriefingPage() {
               </h1>
             </div>
             <span className="shrink-0 rounded bg-indigo-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-              {variant} · {variantLabel}
+              {view.variant} · {variantLabel}
             </span>
           </div>
         </header>
@@ -213,7 +340,7 @@ export default function BriefingPage() {
             ) : null}
 
             <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
-              {briefing.days.map((day) => (
+              {briefing.days.map((day, dayIndex) => (
                 <section
                   key={day.label}
                   className="flex min-h-0 flex-1 flex-col overflow-hidden rounded border border-slate-200 bg-white"
@@ -224,7 +351,7 @@ export default function BriefingPage() {
                   </div>
 
                   <ul className="min-h-0 flex-1 divide-y divide-slate-100 overflow-hidden">
-                    {day.blocks.map((block) => (
+                    {day.blocks.map((block, blockIndex) => (
                       <li
                         key={`${day.label}-${block.time_label}-${block.place_id}`}
                         className="px-2 py-1"
@@ -242,6 +369,16 @@ export default function BriefingPage() {
                               <h3 className="text-xs font-semibold leading-tight">
                                 {block.title}
                               </h3>
+                              <button
+                                type="button"
+                                className={swapButtonClass}
+                                disabled={swapTarget === `${dayIndex}-${blockIndex}`}
+                                onClick={() => void handleSwapSpot(dayIndex, blockIndex)}
+                              >
+                                {swapTarget === `${dayIndex}-${blockIndex}`
+                                  ? "교체 중…"
+                                  : "다른 곳으로"}
+                              </button>
                             </div>
                             <p className="text-[10px] leading-snug text-slate-600">
                               {block.desc}
@@ -280,6 +417,15 @@ export default function BriefingPage() {
                   ))}
                 </ul>
               </section>
+
+              {swapMessage ? (
+                <section
+                  className="shrink-0 rounded border border-slate-200 bg-white px-2 py-1"
+                  role="status"
+                >
+                  <p className="text-[10px] leading-snug text-slate-700">{swapMessage}</p>
+                </section>
+              ) : null}
 
               {briefing.pool_exhausted ? (
                 <section

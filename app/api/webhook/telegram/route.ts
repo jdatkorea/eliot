@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       return Response.json({ ok: true, action: "start_keyboard" });
     }
 
-    const { tripRequest, chatId } = parseWebhookBody(body);
+    const { tripRequest, chatId } = parseWebhookBody(body, request);
     const result = await deliverTripBriefing(tripRequest, chatId, {
       skipIfNoToken: true,
     });

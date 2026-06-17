@@ -4,8 +4,10 @@ import { DEFAULT_APP_CONFIG } from "@/lib/config/app-config";
 import {
   assertNoCrossDayDuplicates,
   canonicalizeDestination,
+  DEFAULT_COURSE_DURATION_HOURS,
   generateCourse,
   generateMultiDayCourse,
+  resolveTimeTemplateKey,
 } from "@/lib/engine/course-generator";
 import type { Place } from "@/lib/engine/types";
 import { FIXED_DESTINATION } from "@/lib/webapp/build-trip-request";
@@ -21,11 +23,18 @@ describe("generateCourse — 단일 5h 블록", () => {
       destination: FIXED_DESTINATION,
       mode: "family",
       mood_tags: [],
+      courseOptions: { duration: DEFAULT_COURSE_DURATION_HOURS },
     });
 
     expect(result.course.length).toBe(4);
     const ids = result.course.map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("courseOptions.duration에 따라 템플릿 키를 선택한다", () => {
+    expect(resolveTimeTemplateKey(3)).toBe("short");
+    expect(resolveTimeTemplateKey(5)).toBe("half_day");
+    expect(resolveTimeTemplateKey(8)).toBe("full_day");
   });
 
   it("excludeIds로 이전 방문 장소를 제외한다", () => {

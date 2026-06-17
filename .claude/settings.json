@@ -1,0 +1,15 @@
+{
+    "permissions": {
+      "defaultMode": "acceptEdits",
+      "deny": [
+        "Bash(git push:*)",
+        "Bash(supabase db push:*)",
+        "Bash(npx supabase db push:*)",
+        "Bash(vercel:*)",
+        "Bash(npx vercel:*)",
+        "Bash(curl *api.telegram.org:*)",
+        "Bash(rm -rf:*)",
+        "Bash(npm publish:*)"
+      ]
+    }
+  }
