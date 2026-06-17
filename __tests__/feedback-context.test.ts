@@ -116,9 +116,25 @@ describe("buildTelegramLinkMessage", () => {
     expect(text).toContain("A · 근거리·기본형 브리핑 보기");
     expect(text).toContain("B · 원거리·확장형 브리핑 보기");
     expect(text).toContain("여정 종료 후 피드백 남기기");
+    expect(text).not.toContain("\t");
     expect(text).not.toContain("---");
     expect(text).toContain("trip_id=trip-live");
     expect(text).toContain("mood_tags=relaxed_pace%2Cfood_light");
     expect(text).not.toContain("test-weekend");
+  });
+
+  it("브리핑 요약이 있으면 플랫 텍스트 블록을 상단에 포함", () => {
+    const { text } = buildTelegramLinkMessage({
+      urlA: "http://localhost:3000/briefing#data=a&variant=A",
+      urlB: "http://localhost:3000/briefing#data=b&variant=B",
+      labelA: "근거리·기본형",
+      labelB: "원거리·확장형",
+      feedbackUrl: "http://localhost:3000/feedback?trip_id=trip-live",
+      briefingSummary: "여정 명세서 · 패밀리타임\n날씨: 맑음",
+    });
+
+    expect(text).toContain("<pre>");
+    expect(text).toContain("여정 명세서 · 패밀리타임");
+    expect(text).not.toContain("\t");
   });
 });

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import placesFixture from "@/fixtures/places.sample.json";
 import { DEFAULT_APP_CONFIG } from "@/lib/config/app-config";
 import {
@@ -6,7 +6,7 @@ import {
   weatherKeyFromRainProb,
 } from "@/lib/engine/apply-config";
 import { generateBriefing } from "@/lib/engine/generate-briefing";
-import { normalize, HOME_ADDRESS } from "@/lib/engine/normalize";
+import { normalize } from "@/lib/engine/normalize";
 import { deriveVariantB } from "@/lib/engine/variant";
 import type { FeedbackEvent, Place } from "@/lib/engine/types";
 import { TIME_LABELS } from "@/lib/engine/types";
@@ -16,34 +16,11 @@ const placeIds = new Set(places.map((p) => p.id));
 const appConfig = DEFAULT_APP_CONFIG;
 const feedbackEvents: FeedbackEvent[] = [];
 
+const HOME_REGION = "인천_근교";
+const REMOTE_REGION = "경주";
+
 function allBlocks(briefing: ReturnType<typeof generateBriefing>) {
   return briefing.days.flatMap((day) => day.blocks);
-}
-
-function haversineKm(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-const originCoords = appConfig.origin_coords[HOME_ADDRESS]!;
-
-function distanceFromOrigin(place: Place): number {
-  return haversineKm(
-    originCoords.lat,
-    originCoords.lng,
-    place.lat,
-    place.lng,
-  );
 }
 
 function briefingInput(
@@ -64,13 +41,46 @@ function briefingInput(
     feedback_events: overrides.feedback_events ?? feedbackEvents,
     config: overrides.config ?? appConfig,
     weather: overrides.weather,
-    destination: overrides.destination,
+    destination: overrides.destination ?? HOME_REGION,
     date_label: overrides.date_label,
   };
 }
 
-describe("generateBriefing — outdoor weather_backup", () => {
-  it("우천(≥ threshold) + is_outdoor + backup_place_id → weather_backup 부착", () => {
+describe("generateBriefing — Joker fallback observability", () => {
+  it("빈 places 풀 시 pool_exhausted=true 및 console.warn에 제약 조건 기록", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const briefing = generateBriefing(
+      briefingInput({
+        places: [],
+        normalized: { mood_tags: ["indoor_only"], mode: "family" },
+      }),
+    );
+
+    expect(briefing.pool_exhausted).toBe(true);
+    expect(warnSpy).toHaveBeenCalled();
+
+    const poolWarn = warnSpy.mock.calls.find(
+      ([msg]) =>
+        typeof msg === "string" &&
+        msg.includes("[generate-briefing] pool exhausted"),
+    );
+    expect(poolWarn).toBeDefined();
+
+    const meta = poolWarn?.[1] as {
+      constraints: { indoor_only: boolean; mood_tags: string[] };
+      places_total: number;
+    };
+    expect(meta.constraints.indoor_only).toBe(true);
+    expect(meta.constraints.mood_tags).toEqual(["indoor_only"]);
+    expect(meta.places_total).toBe(0);
+
+    warnSpy.mockRestore();
+  });
+});
+
+describe("generateBriefing — outdoor weather_note", () => {
+  it("우천(≥ threshold) + is_outdoor → 우천 대안 안내 weather_note", () => {
     const briefing = generateBriefing(
       briefingInput({
         weather: {
@@ -84,10 +94,9 @@ describe("generateBriefing — outdoor weather_backup", () => {
 
     for (const block of allBlocks(briefing)) {
       const place = places.find((p) => p.id === block.place_id)!;
-      if (place.is_outdoor && place.backup_place_id) {
-        expect(block.weather_backup).toBeDefined();
-        expect(block.weather_backup!.place_id).toBe(place.backup_place_id);
-        expect(placeIds.has(block.weather_backup!.place_id)).toBe(true);
+      if (place.is_outdoor) {
+        expect(block.weather_note).toBe("우천 시 실내 대안 검토");
+        expect(block.weather_backup).toBeUndefined();
       }
     }
   });
@@ -131,41 +140,40 @@ describe("generateBriefing — mode=family no_kids_zone", () => {
   });
 });
 
-describe("generateBriefing — mood_tag effects", () => {
-  it("baby_tired: 반경 cap 40→20km (원거리 장소 제외)", () => {
-    const defaultBriefing = generateBriefing(
+describe("generateBriefing — destination region gate", () => {
+  it("기본: home_region과 destination 일치 장소만 선택", () => {
+    const briefing = generateBriefing(
       briefingInput({
+        destination: HOME_REGION,
         normalized: { mood_tags: [] },
       }),
     );
-    const tiredBriefing = generateBriefing(
-      briefingInput({
-        normalized: { mood_tags: ["baby_tired"] },
-      }),
-    );
 
-    const effects = resolveMoodEffects(appConfig, ["baby_tired"]);
-    expect(effects.radiusCapKm).toBe(20);
-    expect(appConfig.default_radius_cap_km).toBe(40);
-
-    for (const block of allBlocks(tiredBriefing)) {
+    for (const block of allBlocks(briefing)) {
       const place = places.find((p) => p.id === block.place_id)!;
-      expect(distanceFromOrigin(place)).toBeLessThanOrEqual(20);
-    }
-
-    const defaultFar = allBlocks(defaultBriefing).some((block) => {
-      const place = places.find((p) => p.id === block.place_id)!;
-      return distanceFromOrigin(place) > 20;
-    });
-    const tiredFar = allBlocks(tiredBriefing).some((block) => {
-      const place = places.find((p) => p.id === block.place_id)!;
-      return distanceFromOrigin(place) > 20;
-    });
-    if (defaultFar) {
-      expect(tiredFar).toBe(false);
+      expect(place.destination).toBe(HOME_REGION);
     }
   });
 
+  it("extend_range: home_region 필터 해제 — 타 지역 장소 포함 가능", () => {
+    const briefing = generateBriefing(
+      briefingInput({
+        destination: HOME_REGION,
+        normalized: { mood_tags: ["extend_range"] },
+      }),
+    );
+
+    const selectedDestinations = new Set(
+      allBlocks(briefing).map((block) => {
+        const place = places.find((p) => p.id === block.place_id)!;
+        return place.destination;
+      }),
+    );
+    expect(selectedDestinations.has(REMOTE_REGION)).toBe(true);
+  });
+});
+
+describe("generateBriefing — mood_tag effects", () => {
   it("indoor_only: is_outdoor=false 장소만 선택", () => {
     const briefing = generateBriefing(
       briefingInput({
@@ -186,7 +194,7 @@ describe("generateBriefing — mood_tag effects", () => {
 describe("generateBriefing — pool 고갈 rotation", () => {
   it("usedPlaceIds 고갈 시 빈 used·excluded로 재필터하여 블록 생성 지속", () => {
     const tinyPool = places.filter(
-      (p) => !p.no_kids_zone && !p.is_outdoor && p.break_time === null,
+      (p) => !p.no_kids_zone && !p.is_outdoor && p.destination === HOME_REGION,
     ).slice(0, 2);
 
     expect(tinyPool.length).toBe(2);
@@ -258,9 +266,6 @@ describe("generateBriefing — 불변식", () => {
     const briefing = generateBriefing(briefingInput());
     for (const block of allBlocks(briefing)) {
       expect(placeIds.has(block.place_id)).toBe(true);
-      if (block.weather_backup) {
-        expect(placeIds.has(block.weather_backup.place_id)).toBe(true);
-      }
     }
   });
 });
@@ -335,37 +340,30 @@ describe("normalize — duration·return_location", () => {
 });
 
 describe("apply-config — resolveMoodEffects", () => {
-  it("태그 없음 → default_radius_cap_km·기본 효과", () => {
+  it("태그 없음 → 기본 효과", () => {
     const effects = resolveMoodEffects(appConfig, []);
-    expect(effects.radiusCapKm).toBe(40);
     expect(effects.blockCountModifier).toBe(0);
     expect(effects.indoorOnly).toBe(false);
     expect(effects.relaxedLabels).toBe(false);
+    expect(effects.indoorBias).toBe(0);
   });
 
-  it("복수 태그 효과 누적·덮어쓰기", () => {
+  it("복수 태그 효과 누적", () => {
     const effects = resolveMoodEffects(appConfig, [
       "baby_tired",
       "relaxed_pace",
       "indoor_only",
     ]);
     expect(effects.blockCountModifier).toBe(-2);
-    expect(effects.radiusCapKm).toBe(20);
     expect(effects.indoorBias).toBe(5);
     expect(effects.relaxedLabels).toBe(true);
     expect(effects.indoorOnly).toBe(true);
   });
 
-  it("extend_range → radiusCapKm 120", () => {
+  it("extend_range → 거리 효과 없음 (destination 게이트 전용)", () => {
     const effects = resolveMoodEffects(appConfig, ["extend_range"]);
-    expect(effects.radiusCapKm).toBe(120);
-  });
-
-  it("baby_tired+extend_range → min-cap 20 (배열 순서 무관)", () => {
-    const ab = resolveMoodEffects(appConfig, ["baby_tired", "extend_range"]);
-    const ba = resolveMoodEffects(appConfig, ["extend_range", "baby_tired"]);
-    expect(ab.radiusCapKm).toBe(20);
-    expect(ba.radiusCapKm).toBe(20);
+    expect(effects.blockCountModifier).toBe(0);
+    expect(effects.indoorOnly).toBe(false);
   });
 });
 

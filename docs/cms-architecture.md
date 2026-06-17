@@ -45,36 +45,24 @@ ELIOT의 마스터 데이터(Safe Pool 장소, 운영 설정)는 **Google Sheets
 | `destination` | `destination` | `destination` | `text` | ✓ | 예: `인천_근교` |
 | `name` | `name` | `name` | `text` | ✓ | 표시명 |
 | `category` | `category` | `category` | `enum` | ✓ | `meal` \| `cafe` \| `activity` \| `view` \| `kids` |
-| `lat` | `lat` | `lat` | `number` | ✓ | WGS84 위도 |
-| `lng` | `lng` | `lng` | `number` | ✓ | WGS84 경도 |
-| `curtail_count` | `curtail_count` | `curtail_count` | `integer` | ✓ | 브리핑 블록 수 상한에 사용 |
 | `is_outdoor` | `is_outdoor` | `is_outdoor` | `boolean` | ✓ | `TRUE`/`FALSE`, `1`/`0`, `예`/`아니오` |
 | `no_kids_zone` | `no_kids_zone` | `no_kids_zone` | `boolean` | ✓ | 동일 |
-| `break_time` | `break_time` | `break_time` | `text` | | 빈 셀 → `null` |
-| `naver_url` | `naver_url` | `naver_url` | `text` | ✓ | 네이버 지도 URL |
-| `backup_place_id` | `backup_place_id` | `backup_place_id` | `text` | | 빈 셀 → `null`. `id`와 동일한 UUID 매핑 규칙 적용 |
-| `last_verified` | `last_verified` | `last_verified` | `date` | ✓ | `YYYY-MM-DD` |
-| `notes` | `notes` | `notes` | `text` | | 빈 셀 → `null` |
+| `tags` | `tags` | `tags` | `text[]` | | 쉼표 구분 태그. `classifyTags()`로 stroller/nursing 플래그 파생 |
 | `status` | *(미저장)* | — | `enum` | | `active` \| `archived`. `archived` 행은 upsert 제외 |
 
-#### Supabase `places` DDL (PRD 정합)
+#### Supabase `places` DDL (7-field Sheet 스키마)
 
 ```sql
 create table public.places (
-  id              uuid primary key,
-  destination     text not null,
-  name            text not null,
-  category        text not null check (category in ('meal','cafe','activity','view','kids')),
-  lat             double precision not null,
-  lng             double precision not null,
-  curtail_count   integer not null default 0,
-  is_outdoor      boolean not null default false,
-  no_kids_zone    boolean not null default false,
-  break_time      text,
-  naver_url       text not null,
-  backup_place_id uuid references public.places(id),
-  last_verified   date not null,
-  notes           text
+  id                uuid primary key,
+  destination       text not null,
+  name              text not null,
+  category          text not null check (category in ('meal','cafe','activity','view','kids')),
+  is_outdoor        boolean not null default false,
+  no_kids_zone      boolean not null default false,
+  tags              text[] not null default '{}',
+  stroller_friendly boolean not null default false,
+  has_nursing_room  boolean not null default false
 );
 ```
 

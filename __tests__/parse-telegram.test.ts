@@ -105,6 +105,12 @@ describe("parseWebhookBody (Telegram web_app_data)", () => {
     expect(links.urlB).toMatch(/^http:\/\/localhost:3000\/briefing#data=/);
     expect(links.urlA).toContain("variant=A");
     expect(links.urlB).toContain("variant=B");
+    expect(links.briefingA.context_meta?.weather_text).toBe(
+      DEFAULT_WEBAPP_FORM.weather,
+    );
+    expect(links.briefingA.context_meta?.sunset_time).toBe(
+      DEFAULT_WEBAPP_FORM.sunset_time,
+    );
   });
 
   it("web_app_data가 없으면 에러", () => {

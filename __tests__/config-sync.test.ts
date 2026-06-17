@@ -67,7 +67,6 @@ describe("safeAppConfigFromDbRows — 런타임 fail-over", () => {
       { key: "mood_tags", value: DEFAULT_APP_CONFIG.mood_tags },
       { key: "mood_tag_effects", value: DEFAULT_APP_CONFIG.mood_tag_effects },
       { key: "templates", value: { base: {}, block_category_map: {}, desc_by_category: {} } },
-      { key: "origin_coords", value: DEFAULT_APP_CONFIG.origin_coords },
       { key: "rain_prob_threshold", value: "not-a-number" },
     ]);
     expect(config).toEqual(DEFAULT_APP_CONFIG);

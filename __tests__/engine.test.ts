@@ -4,11 +4,14 @@ import { DEFAULT_APP_CONFIG } from "@/lib/config/app-config";
 import { normalize, hoursBetween } from "@/lib/engine/normalize";
 import { generateBriefing } from "@/lib/engine/generate-briefing";
 import { deriveVariantB, variantLabel } from "@/lib/engine/variant";
+import { FIXED_DESTINATION } from "@/lib/webapp/build-trip-request";
 import type { FeedbackEvent, Place, TripRequest } from "@/lib/engine/types";
 import { TIME_LABELS } from "@/lib/engine/types";
 
 const places = placesFixture as Place[];
 const placeIds = new Set(places.map((p) => p.id));
+const feedbackEvents: FeedbackEvent[] = [];
+const appConfig = DEFAULT_APP_CONFIG;
 
 const baseNormalized = normalize({
   start_mode: "duration",
@@ -24,8 +27,14 @@ const rainyWeather = {
   advice: "우산을 챙기세요.",
 };
 
-const feedbackEvents: FeedbackEvent[] = [];
-const appConfig = DEFAULT_APP_CONFIG;
+const baseInput = {
+  normalized: baseNormalized,
+  places,
+  feedback_events: feedbackEvents,
+  config: appConfig,
+  weather: rainyWeather,
+  destination: FIXED_DESTINATION,
+};
 
 function allBlocks(briefing: ReturnType<typeof generateBriefing>) {
   return briefing.days.flatMap((day) => day.blocks);
@@ -74,31 +83,19 @@ describe("normalize", () => {
       mode: "family",
     });
     const briefingWith = generateBriefing({
+      ...baseInput,
       normalized: withReturn,
-      places,
-      feedback_events: feedbackEvents,
-      config: appConfig,
-      weather: rainyWeather,
     });
     const briefingWithout = generateBriefing({
+      ...baseInput,
       normalized: withoutReturn,
-      places,
-      feedback_events: feedbackEvents,
-      config: appConfig,
-      weather: rainyWeather,
     });
     expect(briefingWith).toEqual(briefingWithout);
   });
 });
 
 describe("generateBriefing — 결정론적 순수함수", () => {
-  const input = {
-    normalized: baseNormalized,
-    places,
-    feedback_events: feedbackEvents,
-    config: appConfig,
-    weather: rainyWeather,
-  };
+  const input = baseInput;
 
   it("동일 입력 → 동일 출력", () => {
     const a = generateBriefing(input);
@@ -120,21 +117,24 @@ describe("generateBriefing — 결정론적 순수함수", () => {
     const briefing = generateBriefing(input);
     for (const block of allBlocks(briefing)) {
       expect(placeIds.has(block.place_id)).toBe(true);
-      if (block.weather_backup) {
-        expect(placeIds.has(block.weather_backup.place_id)).toBe(true);
-      }
     }
   });
 
-  it("is_outdoor=true 블록은 weather_backup 또는 weather_note 보유", () => {
+  it("is_outdoor=true 블록은 weather_note 보유", () => {
     const briefing = generateBriefing(input);
     for (const block of allBlocks(briefing)) {
       const place = places.find((p) => p.id === block.place_id)!;
       if (place.is_outdoor) {
-        expect(
-          block.weather_backup !== undefined || block.weather_note !== undefined,
-        ).toBe(true);
+        expect(block.weather_note).toBeDefined();
       }
+    }
+  });
+
+  it("destination 일치 장소만 선택 (7필드 게이트)", () => {
+    const briefing = generateBriefing(input);
+    for (const block of allBlocks(briefing)) {
+      const place = places.find((p) => p.id === block.place_id)!;
+      expect(place.destination).toBe(FIXED_DESTINATION);
     }
   });
 });
@@ -142,11 +142,8 @@ describe("generateBriefing — 결정론적 순수함수", () => {
 describe("mode 필터", () => {
   it("family 모드: no_kids_zone=true 장소 제외", () => {
     const briefing = generateBriefing({
+      ...baseInput,
       normalized: { ...baseNormalized, mode: "family" },
-      places,
-      feedback_events: feedbackEvents,
-      config: appConfig,
-      weather: rainyWeather,
     });
 
     for (const block of allBlocks(briefing)) {
@@ -158,27 +155,23 @@ describe("mode 필터", () => {
   it("couple 모드: no_kids_zone 필터 미적용", () => {
     const noKidsPlace = places.find((p) => p.no_kids_zone)!;
     const coupleBriefing = generateBriefing({
+      ...baseInput,
       normalized: {
         ...baseNormalized,
         mode: "couple",
         mood_tags: ["extend_range"],
       },
-      places: places.filter((p) => p.id === noKidsPlace.id || p.curtail_count >= 2),
-      feedback_events: feedbackEvents,
-      config: appConfig,
-      weather: rainyWeather,
+      places: places.filter((p) => p.id === noKidsPlace.id || p.category === "cafe"),
     });
 
     const familyBriefing = generateBriefing({
+      ...baseInput,
       normalized: {
         ...baseNormalized,
         mode: "family",
         mood_tags: ["extend_range"],
       },
-      places: places.filter((p) => p.id === noKidsPlace.id || p.curtail_count >= 2),
-      feedback_events: feedbackEvents,
-      config: appConfig,
-      weather: rainyWeather,
+      places: places.filter((p) => p.id === noKidsPlace.id || p.category === "cafe"),
     });
 
     const coupleIds = allBlocks(coupleBriefing).map((b) => b.place_id);
@@ -205,7 +198,7 @@ describe("deriveVariantB / variantLabel", () => {
     }
   });
 
-  it("거리/페이스 축 차이 보장", () => {
+  it("destination/페이스 축 차이 보장", () => {
     expect(deriveVariantB(["extend_range"])).not.toContain("extend_range");
     expect(deriveVariantB(["relaxed_pace"])).toContain("extend_range");
     expect(deriveVariantB(["relaxed_pace"])).not.toContain("relaxed_pace");
@@ -222,18 +215,12 @@ describe("deriveVariantB / variantLabel", () => {
     const moodTagsB = deriveVariantB(moodTagsA);
 
     const briefingA = generateBriefing({
+      ...baseInput,
       normalized: { ...baseNormalized, mood_tags: moodTagsA },
-      places,
-      feedback_events: feedbackEvents,
-      config: appConfig,
-      weather: rainyWeather,
     });
     const briefingB = generateBriefing({
+      ...baseInput,
       normalized: { ...baseNormalized, mood_tags: moodTagsB },
-      places,
-      feedback_events: feedbackEvents,
-      config: appConfig,
-      weather: rainyWeather,
     });
 
     expect(moodTagsA).not.toEqual(moodTagsB);
@@ -244,10 +231,8 @@ describe("deriveVariantB / variantLabel", () => {
 describe("buildChecklist — 규칙 기반 준비물", () => {
   it("family 모드: 필수 준비물 포함, place.notes 미포함", () => {
     const briefing = generateBriefing({
+      ...baseInput,
       normalized: { ...baseNormalized, mode: "family" },
-      places,
-      feedback_events: feedbackEvents,
-      config: appConfig,
     });
 
     const checklistBody = briefing.checklist.slice(1);
@@ -260,10 +245,8 @@ describe("buildChecklist — 규칙 기반 준비물", () => {
 
   it("couple 모드: family 전용 준비물 제외", () => {
     const briefing = generateBriefing({
+      ...baseInput,
       normalized: { ...baseNormalized, mode: "couple" },
-      places,
-      feedback_events: feedbackEvents,
-      config: appConfig,
     });
 
     const checklistBody = briefing.checklist.slice(1);
@@ -275,10 +258,8 @@ describe("buildChecklist — 규칙 기반 준비물", () => {
 
   it("강수 확률 임계값 이상: 우산·우비 포함", () => {
     const briefing = generateBriefing({
+      ...baseInput,
       normalized: { ...baseNormalized, mode: "family" },
-      places,
-      feedback_events: feedbackEvents,
-      config: appConfig,
       weather: rainyWeather,
     });
 
