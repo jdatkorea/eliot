@@ -27,19 +27,52 @@ export type Block = {
   weather_backup?: { place_id: string; reason: string };
 };
 
+export type TripLocation = {
+  lat: number;
+  lng: number;
+};
+
+export type PriorTripFeedback = {
+  mood_intensity?: number;
+  mood_tags?: string[];
+  mode?: "family" | "couple";
+  weather?: string;
+  place_category?: PlaceCategory;
+  excluded_categories?: PlaceCategory[];
+  pool_exhausted?: boolean;
+  satisfaction?: number;
+  failure_reason?: FailureReason;
+  saved_at?: string;
+};
+
+export type BriefingContextMeta = {
+  operation_time: string;
+  base_camp: string;
+  weather_text: string;
+  energy_level?: number;
+  sunset_time?: string;
+  constraints?: string;
+  duration_hours?: number;
+  destination?: string;
+  location?: TripLocation;
+  prior_trip_feedback?: PriorTripFeedback;
+};
+
 export type Briefing = {
   destination: string;
   date_label: string;
   weather: { summary: string; temp: string; rain_prob: string; advice: string };
   days: { label: string; title: string; blocks: Block[] }[];
   checklist: string[];
+  context_meta?: BriefingContextMeta;
+  /** DB 필터 매칭 0건으로 Joker fallback이 발동된 경우 */
+  pool_exhausted?: boolean;
 };
 
 export type PlaceCategory = "meal" | "cafe" | "activity" | "view" | "kids";
 
 export type MoodTagEffects = {
   blockCountModifier: number;
-  radiusCapKm: number;
   indoorBias: number;
   relaxedLabels: boolean;
   indoorOnly: boolean;
@@ -68,12 +101,7 @@ export type AppConfig = {
   mood_tags: string[];
   mood_tag_effects: Record<string, Partial<MoodTagEffects>>;
   templates: AppConfigTemplates;
-  origin_coords: Record<string, { lat: number; lng: number }>;
   rain_prob_threshold: number;
-  default_radius_cap_km: number;
-  extend_radius_cap_km: number;
-  baby_tired_radius_cap_km: number;
-  transport_thresholds: { short_km: number; medium_km: number };
 };
 
 export type Place = {
@@ -126,6 +154,10 @@ export type TripRequest = {
   duration_hours?: number;
   origin?: string;
   return_location?: string;
+  destination?: string;
+  location?: TripLocation;
+  trip_date?: string;
+  prior_trip_feedback?: PriorTripFeedback;
   mood_tags: string[];
   mood_intensity?: number;
   mode: "family" | "couple";
@@ -151,4 +183,5 @@ export type GenerateBriefingInput = {
   destination?: string;
   date_label?: string;
   weather?: Briefing["weather"];
+  trip_context?: BriefingContextMeta;
 };

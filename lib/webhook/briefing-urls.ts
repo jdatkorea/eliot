@@ -1,6 +1,7 @@
 import { compressToEncodedURIComponent } from "lz-string";
 import { getFixtureBriefingData } from "@/lib/fixtures/briefing-data";
 import { generateBriefing } from "@/lib/engine/generate-briefing";
+import { buildGenerateBriefingOptions } from "@/lib/engine/trip-context";
 import { normalize } from "@/lib/engine/normalize";
 import type {
   AppConfig,
@@ -10,6 +11,7 @@ import type {
   TripRequest,
 } from "@/lib/engine/types";
 import { deriveVariantB, variantLabel } from "@/lib/engine/variant";
+import { formatKstDateLabelFromIso } from "@/lib/webapp/telegram-native";
 
 function formatKstDate(date: Date): string {
   const f = new Intl.DateTimeFormat("ko-KR", {
@@ -22,6 +24,21 @@ function formatKstDate(date: Date): string {
   const parts = f.formatToParts(date);
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
   return `${get("year")}년 ${get("month")}월 ${get("day")}일(${get("weekday")})`;
+}
+
+function resolveDateLabel(tripRequest: TripRequest): string {
+  if (tripRequest.trip_date?.trim()) {
+    return formatKstDateLabelFromIso(tripRequest.trip_date.trim());
+  }
+  return formatKstDate(new Date());
+}
+
+function mergeFeedbackEvents(
+  cloudEvents: FeedbackEvent[],
+  dataEvents: FeedbackEvent[],
+): FeedbackEvent[] {
+  if (cloudEvents.length === 0) return dataEvents;
+  return [...cloudEvents, ...dataEvents];
 }
 
 /** 단일 브리핑(레거시) 또는 A/B 듀얼 페이로드 */
@@ -130,22 +147,29 @@ export function buildBriefingLinks(
   const moodTagsB = deriveVariantB(moodTagsA);
   const { places, feedback_events, config } = data;
 
-  const dateLabel = formatKstDate(new Date());
+  const dateLabel = resolveDateLabel(tripRequest);
+  const briefingOptions = buildGenerateBriefingOptions(tripRequest, dateLabel);
+  const { feedback_events: cloudFeedbackEvents, ...generateOptions } =
+    briefingOptions;
+  const mergedFeedback = mergeFeedbackEvents(
+    cloudFeedbackEvents,
+    feedback_events,
+  );
 
   const briefingA = generateBriefing({
     normalized: { ...normalized, mood_tags: moodTagsA },
     places,
-    feedback_events,
+    feedback_events: mergedFeedback,
     config,
-    date_label: dateLabel,
+    ...generateOptions,
   });
 
   const briefingB = generateBriefing({
     normalized: { ...normalized, mood_tags: moodTagsB },
     places,
-    feedback_events,
+    feedback_events: mergedFeedback,
     config,
-    date_label: dateLabel,
+    ...generateOptions,
   });
 
   const labelA = variantLabel(moodTagsA);

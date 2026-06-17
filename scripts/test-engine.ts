@@ -109,74 +109,19 @@ function isDefaultConfig(config: AppConfig, configRowCount: number): boolean {
   return configRowCount === 0 || config === safeAppConfigFromDbRows([]);
 }
 
-function haversineKm(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function centroid(places: Place[]): { lat: number; lng: number } {
-  const sum = places.reduce(
-    (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
-    { lat: 0, lng: 0 },
-  );
-  return { lat: sum.lat / places.length, lng: sum.lng / places.length };
-}
-
 function originLabelForDestination(destination: string): string {
   if (destination.includes("경주")) return "경주 시내";
   if (destination.includes("인천")) return HOME_ADDRESS;
   return destination.replace(/_/g, " ");
 }
 
-function resolveOriginCoords(
-  appConfig: AppConfig,
-  origin: string,
-): { lat: number; lng: number } {
-  return (
-    appConfig.origin_coords[origin] ??
-    appConfig.origin_coords[HOME_ADDRESS] ?? { lat: 37.382, lng: 126.657 }
-  );
-}
-
-function countWithinRadius(
+function countInHomeRegion(
   places: Place[],
-  originCoords: { lat: number; lng: number },
-  radiusKm: number,
+  homeRegion: string,
+  moodTags: string[],
 ): number {
-  return places.filter(
-    (p) =>
-      haversineKm(originCoords.lat, originCoords.lng, p.lat, p.lng) <=
-      radiusKm,
-  ).length;
-}
-
-function patchOriginCoordsForDestination(
-  appConfig: AppConfig,
-  origin: string,
-  places: Place[],
-): AppConfig {
-  if (appConfig.origin_coords[origin]) return appConfig;
-  const center = centroid(places);
-  console.log(
-    `  [config 보정] origin_coords["${origin}"] 없음 → 장소 중심 (${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}) 주입`,
-  );
-  return {
-    ...appConfig,
-    origin_coords: {
-      ...appConfig.origin_coords,
-      [origin]: center,
-    },
-  };
+  if (moodTags.includes("extend_range")) return places.length;
+  return places.filter((p) => p.destination === homeRegion).length;
 }
 
 function pickDestination(
@@ -305,49 +250,42 @@ function printConfigDiagnosis(
   console.log(
     `런타임 config: ${usingDefault ? "DEFAULT_APP_CONFIG (fail-over)" : "DB 동기화됨"}`,
   );
-  console.log(
-    `origin_coords 키: ${Object.keys(appConfig.origin_coords).join(", ")}`,
-  );
-  console.log(`default_radius_cap_km: ${appConfig.default_radius_cap_km}`);
   console.log(`rain_prob_threshold: ${appConfig.rain_prob_threshold}`);
-  if (rawConfig && usingDefault) {
-    console.log(
-      "  --raw-config: 출발 좌표 미등록 지역은 DEFAULT 거리 필터(인천 송도·40km)로 전원 탈락 가능",
-    );
-  }
 }
 
 function printPoolStats(
   places: Place[],
   tripRequest: TripRequest,
+  homeRegion: string,
   appConfig: AppConfig,
 ): void {
   const normalized = normalize(tripRequest);
   const effects = resolveMoodEffects(appConfig, normalized.mood_tags);
-  const originCoords = resolveOriginCoords(appConfig, normalized.origin);
   const indoorCount = places.filter((p) => !p.is_outdoor).length;
   const coupleOk = places.filter((p) => !p.no_kids_zone).length;
-  const withinRadius = countWithinRadius(
+  const inRegion = countInHomeRegion(
     places,
-    originCoords,
-    effects.radiusCapKm,
+    homeRegion,
+    normalized.mood_tags,
   );
-  const indoorWithinRadius = places.filter(
+  const indoorInRegion = places.filter(
     (p) =>
       !p.is_outdoor &&
-      haversineKm(originCoords.lat, originCoords.lng, p.lat, p.lng) <=
-        effects.radiusCapKm,
+      (normalized.mood_tags.includes("extend_range") ||
+        p.destination === homeRegion),
   ).length;
 
   console.log("\n--- Safe Pool 스냅샷 ---");
   console.log(`대상 destination 장소: ${places.length} (실내 ${indoorCount})`);
   console.log(`couple 허용(no_kids_zone 제외): ${coupleOk}`);
   console.log(`출발지: ${normalized.origin}`);
+  console.log(`home_region: ${homeRegion}`);
   console.log(
-    `출발 좌표: (${originCoords.lat.toFixed(4)}, ${originCoords.lng.toFixed(4)})`,
+    `지역 게이트 후보: ${inRegion} / 실내: ${indoorInRegion} (mood: ${normalized.mood_tags.join(", ")})`,
   );
-  console.log(`반경 상한: ${effects.radiusCapKm}km (mood: ${normalized.mood_tags.join(", ")})`);
-  console.log(`반경 내 후보: ${withinRadius} / 실내: ${indoorWithinRadius}`);
+  console.log(
+    `교통 힌트: ${normalized.mood_tags.includes("extend_range") ? "원거리" : "근교"}`,
+  );
   if (effects.indoorOnly) {
     console.log("indoor_only: 야외 장소 제외");
   }
@@ -368,24 +306,7 @@ async function runScenario(
   let appConfig = baseData.config;
 
   printConfigDiagnosis(appConfig, configRowCount, rawConfig);
-  printPoolStats(subsetPlaces, tripRequest, appConfig);
-
-  const usingDefault = isDefaultConfig(appConfig, configRowCount);
-  const needsOriginPatch =
-    !rawConfig &&
-    usingDefault &&
-    !appConfig.origin_coords[ctx.origin] &&
-    ctx.origin !== HOME_ADDRESS;
-
-  if (needsOriginPatch) {
-    appConfig = patchOriginCoordsForDestination(
-      appConfig,
-      ctx.origin,
-      subsetPlaces,
-    );
-    console.log("\n--- origin 보정 후 Pool ---");
-    printPoolStats(subsetPlaces, tripRequest, appConfig);
-  }
+  printPoolStats(subsetPlaces, tripRequest, ctx.destination, appConfig);
 
   const data: BriefingData = {
     ...baseData,
@@ -423,7 +344,7 @@ async function runScenario(
     }
     if (briefingUsesJoker(briefing)) {
       throw new Error(
-        `Variant ${variant}에서 Joker fallback — app_config origin_coords·반경 또는 places 풀을 확인하세요.`,
+        `Variant ${variant}에서 Joker fallback — places 풀 또는 destination 게이트를 확인하세요.`,
       );
     }
     assertPlacesFromDb(briefing, dbPlaceIds, `Variant ${variant}`);

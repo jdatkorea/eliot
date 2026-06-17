@@ -18,14 +18,11 @@ export function resolveMoodEffects(
 ): MoodTagEffects {
   const effects: MoodTagEffects = {
     blockCountModifier: 0,
-    radiusCapKm: config.default_radius_cap_km,
     indoorBias: 0,
     relaxedLabels: false,
     indoorOnly: false,
     mealSubtag: null,
   };
-
-  const explicitRadiusCaps: number[] = [];
 
   for (const tag of moodTags) {
     const partial = config.mood_tag_effects[tag];
@@ -33,9 +30,6 @@ export function resolveMoodEffects(
 
     if (partial.blockCountModifier !== undefined) {
       effects.blockCountModifier += partial.blockCountModifier;
-    }
-    if (partial.radiusCapKm !== undefined) {
-      explicitRadiusCaps.push(partial.radiusCapKm);
     }
     if (partial.indoorBias !== undefined) {
       effects.indoorBias += partial.indoorBias;
@@ -49,10 +43,6 @@ export function resolveMoodEffects(
     if (partial.mealSubtag) {
       effects.mealSubtag = partial.mealSubtag;
     }
-  }
-
-  if (explicitRadiusCaps.length > 0) {
-    effects.radiusCapKm = Math.min(...explicitRadiusCaps);
   }
 
   return effects;

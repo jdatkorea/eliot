@@ -1,6 +1,9 @@
 import { POST } from "@/app/api/webhook/telegram/route";
 import type { TripRequest } from "@/lib/engine/types";
-import { buildTripRequest } from "@/lib/webapp/build-trip-request";
+import {
+  buildTripRequest,
+  DEFAULT_WEBAPP_FORM,
+} from "@/lib/webapp/build-trip-request";
 import { buildTelegramLinkMessage } from "@/lib/webhook/telegram-message";
 
 const mockTripRequest: TripRequest = {
@@ -74,13 +77,7 @@ async function runWebhookTest(body: unknown, label: string) {
   return result.urls;
 }
 
-const webAppTripRequest = buildTripRequest({
-  weather: "23도~31도, 폭염, 자외선 매우 높음",
-  mood_intensity: 90,
-  sunset_time: "19:56",
-  constraints:
-    "18:00 이후 퇴근길 교통체증 회피를 위한 선형(Linear) 동선 유지 (와리가리 금지).",
-});
+const webAppTripRequest = buildTripRequest(DEFAULT_WEBAPP_FORM);
 
 const webAppTelegramUpdate = {
   message: {

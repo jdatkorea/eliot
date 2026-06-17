@@ -13,7 +13,7 @@ import type {
   TimeLabel,
 } from "./types";
 import { TIME_LABELS } from "./types";
-import { HOME_ADDRESS } from "./normalize";
+import { FIXED_DESTINATION } from "@/lib/webapp/build-trip-request";
 
 /** DB 필터 매칭 0건 시 파이프라인 방어용 Joker 스팟 */
 const JOKER_FALLBACK_PLACE: Place = {
@@ -21,42 +21,10 @@ const JOKER_FALLBACK_PLACE: Place = {
   destination: "인천_근교",
   name: "송도 현대프리미엄아울렛",
   category: "activity",
-  lat: 37.3827,
-  lng: 126.6569,
-  curtail_count: 1,
   is_outdoor: false,
   no_kids_zone: false,
-  break_time: null,
-  naver_url: "",
-  backup_place_id: null,
-  last_verified: "2026-06-13",
-  notes: null,
+  tags: [],
 };
-
-function haversineKm(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function resolveOriginCoords(
-  config: AppConfig,
-  origin: string,
-): { lat: number; lng: number } {
-  return (
-    config.origin_coords[origin] ??
-    config.origin_coords[HOME_ADDRESS] ?? { lat: 37.382, lng: 126.657 }
-  );
-}
 
 function deterministicIndex(seed: string, max: number): number {
   if (max <= 0) return 0;
@@ -116,32 +84,9 @@ function buildDayPlan(
   }));
 }
 
-function resolveTransportAdvice(config: AppConfig, maxDistanceKm: number): string {
-  const { short_km, medium_km } = config.transport_thresholds;
-  if (maxDistanceKm <= short_km) return "40km 이내 — 자차 이동";
-  if (maxDistanceKm <= medium_km) return "40~120km — 자차·KTX";
-  return "120km 이상 — 비행기+렌트카";
-}
-
-function conflictsWithBreakTime(timeLabel: TimeLabel, breakTime: string | null): boolean {
-  if (!breakTime) return false;
-  const match = breakTime.match(/(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})/);
-  if (!match) return false;
-
-  const start = Number(match[1]) * 60 + Number(match[2]);
-  const end = Number(match[3]) * 60 + Number(match[4]);
-
-  const slotRanges: Partial<Record<TimeLabel, [number, number]>> = {
-    오전: [9 * 60, 12 * 60],
-    점심: [11 * 60, 14 * 60],
-    오후: [14 * 60, 17 * 60],
-    저녁: [17 * 60, 20 * 60],
-  };
-
-  const slot = slotRanges[timeLabel];
-  if (!slot) return false;
-
-  return start < slot[1] && end > slot[0];
+function resolveTransportAdvice(moodTags: string[]): string {
+  if (moodTags.includes("extend_range")) return "원거리 — 자차·KTX·항공";
+  return "근교 — 자차 이동";
 }
 
 function recentExcludedCategories(
@@ -155,18 +100,27 @@ function recentExcludedCategories(
   return excluded;
 }
 
+function passesRegionGate(
+  place: Place,
+  homeRegion: string,
+  moodTags: string[],
+): boolean {
+  if (moodTags.includes("extend_range")) return true;
+  return place.destination === homeRegion;
+}
+
 function weightedScore(
   place: Place,
   mode: "family" | "couple",
   categories: PlaceCategory[],
   indoorBias: number,
 ): number {
-  let score = place.curtail_count;
+  let score = 1;
   if (categories.includes(place.category)) score += 3;
   if (mode === "couple" && (place.category === "cafe" || place.category === "view")) {
     score *= 1.5;
   }
-  if (!place.is_outdoor && indoorBias > 0) score += indoorBias;
+  if (place.is_outdoor === false && indoorBias > 0) score += indoorBias;
   return score;
 }
 
@@ -175,46 +129,41 @@ function selectPlace(
   seed: string,
 ): Place | null {
   if (candidates.length === 0) return null;
+  return candidates[deterministicIndex(seed, candidates.length)] ?? null;
+}
 
-  const totalWeight = candidates.reduce((sum, p) => sum + Math.max(p.curtail_count, 1), 0);
-  let pick = deterministicIndex(seed, totalWeight);
-  for (const place of candidates) {
-    const weight = Math.max(place.curtail_count, 1);
-    if (pick < weight) return place;
-    pick -= weight;
-  }
-  return candidates[0];
+type PoolFilterParams = {
+  mode: "family" | "couple";
+  moodTags: string[];
+  homeRegion: string;
+  usedPlaceIds: Set<string>;
+  excludedCategories: Set<PlaceCategory>;
+  indoorOnly: boolean;
+};
+
+function describePoolConstraints(params: PoolFilterParams): Record<string, unknown> {
+  return {
+    mode: params.mode,
+    mood_tags: params.moodTags,
+    home_region: params.homeRegion,
+    extend_range: params.moodTags.includes("extend_range"),
+    indoor_only: params.indoorOnly,
+    used_place_count: params.usedPlaceIds.size,
+    excluded_categories: [...params.excludedCategories],
+  };
 }
 
 function filterPool(
-  config: AppConfig,
   places: Place[],
-  params: {
-    mode: "family" | "couple";
-    moodTags: string[];
-    origin: string;
-    timeLabel: TimeLabel;
-    usedPlaceIds: Set<string>;
-    excludedCategories: Set<PlaceCategory>;
-  },
+  params: PoolFilterParams,
 ): Place[] {
-  const effects = resolveMoodEffects(config, params.moodTags);
-  const originCoords = resolveOriginCoords(config, params.origin);
-
   return places.filter((place) => {
     if (params.usedPlaceIds.has(place.id)) return false;
-    if (params.mode === "family" && place.no_kids_zone) return false;
-    if (effects.indoorOnly && place.is_outdoor) return false;
-    if (conflictsWithBreakTime(params.timeLabel, place.break_time)) return false;
+    if (params.mode === "family" && place.no_kids_zone === true) return false;
+    if (params.indoorOnly && place.is_outdoor === true) return false;
     if (params.excludedCategories.has(place.category)) return false;
-
-    const distance = haversineKm(
-      originCoords.lat,
-      originCoords.lng,
-      place.lat,
-      place.lng,
-    );
-    return distance <= effects.radiusCapKm;
+    if (!passesRegionGate(place, params.homeRegion, params.moodTags)) return false;
+    return true;
   });
 }
 
@@ -286,8 +235,7 @@ function defaultWeather(): Briefing["weather"] {
 export function generateBriefing(input: GenerateBriefingInput): Briefing {
   const { normalized, places, feedback_events, config } = input;
   const weather = input.weather ?? defaultWeather();
-  const destination =
-    input.destination ?? places[0]?.destination ?? "인천_근교";
+  const homeRegion = input.destination ?? FIXED_DESTINATION;
   const dateLabel = input.date_label ?? (() => {
     const f = new Intl.DateTimeFormat("ko-KR", {
       timeZone: "Asia/Seoul",
@@ -308,7 +256,7 @@ export function generateBriefing(input: GenerateBriefingInput): Briefing {
 
   const dayPlan = buildDayPlan(config, normalized.duration, normalized.mood_tags);
   const usedPlaceIds = new Set<string>();
-  const selectedPlaces: Place[] = [];
+  let poolExhausted = false;
 
   const days = dayPlan.map((day, dayIndex) => {
     const blocks: Block[] = [];
@@ -325,28 +273,45 @@ export function generateBriefing(input: GenerateBriefingInput): Briefing {
         timeLabel,
       ].join("|");
 
-      let candidates = filterPool(config, places, {
+      let candidates = filterPool(places, {
         mode: normalized.mode,
         moodTags: normalized.mood_tags,
-        origin: normalized.origin,
-        timeLabel,
+        homeRegion,
         usedPlaceIds,
         excludedCategories,
+        indoorOnly: effects.indoorOnly,
       });
 
       if (candidates.length === 0) {
-        candidates = filterPool(config, places, {
+        candidates = filterPool(places, {
           mode: normalized.mode,
           moodTags: normalized.mood_tags,
-          origin: normalized.origin,
-          timeLabel,
+          homeRegion,
           usedPlaceIds: new Set(),
           excludedCategories: new Set(),
+          indoorOnly: effects.indoorOnly,
         });
       }
 
       if (candidates.length === 0) {
+        const relaxedParams: PoolFilterParams = {
+          mode: normalized.mode,
+          moodTags: normalized.mood_tags,
+          homeRegion,
+          usedPlaceIds: new Set(),
+          excludedCategories: new Set(),
+          indoorOnly: effects.indoorOnly,
+        };
+        console.warn(
+          "[generate-briefing] pool exhausted — applying Joker fallback",
+          {
+            constraints: describePoolConstraints(relaxedParams),
+            places_total: places.length,
+            block: { dayIndex, blockIndex, timeLabel },
+          },
+        );
         candidates = [JOKER_FALLBACK_PLACE];
+        poolExhausted = true;
       }
 
       candidates.sort((a, b) => {
@@ -369,7 +334,6 @@ export function generateBriefing(input: GenerateBriefingInput): Briefing {
       const place = selectPlace(topCandidates, seed) ?? JOKER_FALLBACK_PLACE;
 
       usedPlaceIds.add(place.id);
-      selectedPlaces.push(place);
 
       const relaxedPrefix = effects.relaxedLabels ? "여유롭게 " : "";
       const desc = fillDescTemplate(
@@ -388,19 +352,12 @@ export function generateBriefing(input: GenerateBriefingInput): Briefing {
         dot: resolveDot(place.category),
       };
 
-      if (place.is_outdoor) {
+      if (place.is_outdoor === true) {
         if (
           Number.isFinite(rainNumeric) &&
-          rainNumeric >= config.rain_prob_threshold &&
-          place.backup_place_id
+          rainNumeric >= config.rain_prob_threshold
         ) {
-          const backup = places.find((p) => p.id === place.backup_place_id);
-          block.weather_backup = {
-            place_id: place.backup_place_id,
-            reason: backup
-              ? `우천 시 ${backup.name}(으)로 대체`
-              : "우천 시 실내 대안",
-          };
+          block.weather_note = "우천 시 실내 대안 검토";
         } else {
           block.weather_note = "야외 장소 — 날씨 확인 후 이동";
         }
@@ -412,22 +369,18 @@ export function generateBriefing(input: GenerateBriefingInput): Briefing {
     return { label: day.label, title: day.title, blocks };
   });
 
-  const originCoords = resolveOriginCoords(config, normalized.origin);
-  const maxDistance = selectedPlaces.reduce((max, place) => {
-    const d = haversineKm(originCoords.lat, originCoords.lng, place.lat, place.lng);
-    return Math.max(max, d);
-  }, 0);
-
-  const transportAdvice = resolveTransportAdvice(config, maxDistance);
+  const transportAdvice = resolveTransportAdvice(normalized.mood_tags);
   const checklist = buildChecklist(config, normalized.mode, weather.rain_prob);
   checklist.unshift(transportAdvice);
 
   return {
-    destination,
+    destination: homeRegion,
     date_label: dateLabel,
     weather,
     days,
     checklist,
+    context_meta: input.trip_context,
+    ...(poolExhausted ? { pool_exhausted: true } : {}),
   };
 }
 

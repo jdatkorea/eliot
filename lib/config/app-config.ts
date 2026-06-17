@@ -6,7 +6,6 @@ import type {
   TimeLabel,
 } from "@/lib/engine/types";
 import { TIME_LABELS } from "@/lib/engine/types";
-import { HOME_ADDRESS } from "@/lib/engine/normalize";
 
 export type {
   AppConfig,
@@ -45,7 +44,6 @@ const descTemplateKeySchema = z.enum([
 
 const moodTagEffectsPartialSchema = z.object({
   blockCountModifier: z.number().optional(),
-  radiusCapKm: z.number().optional(),
   indoorBias: z.number().optional(),
   relaxedLabels: z.boolean().optional(),
   indoorOnly: z.boolean().optional(),
@@ -62,24 +60,13 @@ export const AppConfigSchema = z.object({
       z.record(z.record(weatherKeySchema, z.string())),
     ),
   }),
-  origin_coords: z.record(
-    z.object({ lat: z.number(), lng: z.number() }),
-  ),
   rain_prob_threshold: z.number(),
-  default_radius_cap_km: z.number(),
-  extend_radius_cap_km: z.number(),
-  baby_tired_radius_cap_km: z.number(),
-  transport_thresholds: z.object({
-    short_km: z.number(),
-    medium_km: z.number(),
-  }),
 });
 
 export const REQUIRED_CONFIG_KEYS = [
   "mood_tags",
   "mood_tag_effects",
   "templates",
-  "origin_coords",
   "rain_prob_threshold",
 ] as const;
 
@@ -210,16 +197,13 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   mood_tag_effects: {
     baby_tired: {
       blockCountModifier: -1,
-      radiusCapKm: 20,
       indoorBias: 2,
     },
     relaxed_pace: {
       blockCountModifier: -1,
       relaxedLabels: true,
     },
-    extend_range: {
-      radiusCapKm: 120,
-    },
+    extend_range: {},
     indoor_only: {
       indoorOnly: true,
       indoorBias: 3,
@@ -249,14 +233,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
     },
     desc_by_category: DESC_BY_CATEGORY,
   },
-  origin_coords: {
-    [HOME_ADDRESS]: { lat: 37.382, lng: 126.657 },
-  },
   rain_prob_threshold: 50,
-  default_radius_cap_km: 40,
-  extend_radius_cap_km: 120,
-  baby_tired_radius_cap_km: 20,
-  transport_thresholds: { short_km: 40, medium_km: 120 },
 };
 
 export type AppConfigRow = {
@@ -358,10 +335,6 @@ export function assembleAppConfigFromRows(
     templates: {
       ...DEFAULT_APP_CONFIG.templates,
       ...(rows.templates as AppConfigTemplates | undefined),
-    },
-    origin_coords: {
-      ...DEFAULT_APP_CONFIG.origin_coords,
-      ...(rows.origin_coords as AppConfig["origin_coords"] | undefined),
     },
     mood_tag_effects: {
       ...DEFAULT_APP_CONFIG.mood_tag_effects,

@@ -1,4 +1,8 @@
 import { randomUUID } from "crypto";
+import {
+  formatBriefingFamilyTime,
+  sanitizeTelegramMarkdown,
+} from "@/lib/engine/format-briefing";
 import { normalize } from "@/lib/engine/normalize";
 import type { TripRequest } from "@/lib/engine/types";
 import {
@@ -24,6 +28,7 @@ export type RelayBriefingResult = {
   feedbackUrl: string;
   placesCount: number;
   dataSource: BriefingData["source"];
+  briefingSummary?: string;
 };
 
 export type JourneySubmitResponse = {
@@ -39,13 +44,17 @@ export type DeliverTripBriefingOptions = {
   requireChatId?: boolean;
 };
 
-function toTelegramLinks(result: RelayBriefingResult): TelegramBriefingLinks {
+function toTelegramLinks(
+  result: RelayBriefingResult,
+  briefingSummary?: string,
+): TelegramBriefingLinks {
   return {
     urlA: result.urlA,
     urlB: result.urlB,
     labelA: result.labelA,
     labelB: result.labelB,
     feedbackUrl: result.feedbackUrl,
+    briefingSummary,
   };
 }
 
@@ -72,11 +81,15 @@ export async function relayTripBriefing(
     createFeedbackLinkParams(normalized, tripId),
   );
 
-  const { urlA, urlB, labelA, labelB } = buildBriefingLinks(
+  const { urlA, urlB, labelA, labelB, briefingA } = buildBriefingLinks(
     tripRequest,
     undefined,
     data,
     feedbackUrl,
+  );
+
+  const briefingSummary = sanitizeTelegramMarkdown(
+    formatBriefingFamilyTime(briefingA, labelA),
   );
 
   return {
@@ -88,6 +101,7 @@ export async function relayTripBriefing(
     feedbackUrl,
     placesCount: data.places.length,
     dataSource: data.source,
+    briefingSummary,
   };
 }
 
@@ -107,9 +121,13 @@ export async function deliverTripBriefing(
     }
     console.warn("[relay] resolvedChatId undefined — sendMessage 스킵");
   } else {
-    await sendTelegramLinks(resolvedChatId, toTelegramLinks(briefing), {
-      skipIfNoToken: options?.skipIfNoToken,
-    });
+    await sendTelegramLinks(
+      resolvedChatId,
+      toTelegramLinks(briefing, briefing.briefingSummary),
+      {
+        skipIfNoToken: options?.skipIfNoToken,
+      },
+    );
     console.log("[relay] sendMessage OK chat_id:", resolvedChatId);
   }
 

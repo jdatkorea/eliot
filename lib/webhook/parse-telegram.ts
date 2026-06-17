@@ -21,6 +21,26 @@ export type StartUpdate = {
   chatId: string | number;
 };
 
+export function extractChatId(body: unknown): string | number | undefined {
+  if (!body || typeof body !== "object" || !("message" in body)) {
+    return undefined;
+  }
+
+  const update = body as TelegramUpdate;
+  return update.message?.chat?.id;
+}
+
+export function isWebhookClientError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const message = error.message;
+  return (
+    message.includes("web_app_data가 없습니다") ||
+    message.includes("유효한 TripRequest가 아닙니다") ||
+    message.includes("지원하지 않는 webhook payload") ||
+    message.includes("Unexpected token")
+  );
+}
+
 export function parseStartUpdate(body: unknown): StartUpdate | null {
   if (!body || typeof body !== "object" || !("message" in body)) {
     return null;

@@ -1,7 +1,14 @@
 "use client";
 
 import { decompressFromEncodedURIComponent } from "lz-string";
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
+import DashboardView from "@/lib/admin/DashboardView";
+import { useIsAdmin } from "@/lib/admin/useIsAdmin";
+import {
+  BRIEFING_CHECKLIST_HEADING,
+  getBriefingContextLines,
+  formatDestinationLabel,
+} from "@/lib/engine/format-briefing";
 import type { Block, Briefing } from "@/lib/engine/types";
 import {
   resolveBriefingPayload,
@@ -124,6 +131,9 @@ function selectBriefing(
 const actionButtonClass =
   "block w-full rounded border px-2 py-1.5 text-left text-[10px] font-semibold leading-tight transition-colors";
 
+/** 사령관 Telegram user id — TMA initDataUnsafe.user.id 와 일치해야 함 */
+const COMMANDER_TELEGRAM_ID = 123456789;
+
 function actionButtonStateClass(selected: boolean): string {
   return selected
     ? "border-indigo-500 bg-indigo-50 text-indigo-900"
@@ -133,6 +143,8 @@ function actionButtonStateClass(selected: boolean): string {
 export default function BriefingPage() {
   const hash = useLocationHash();
   const view = useMemo(() => resolveViewFromHash(hash), [hash]);
+  const isAdmin = useIsAdmin(COMMANDER_TELEGRAM_ID);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   if (view.status === "loading") {
     return (
@@ -152,6 +164,7 @@ export default function BriefingPage() {
 
   const variant = view.variant;
   const { briefing, variantLabel } = selectBriefing(view, variant);
+  const contextLines = getBriefingContextLines(briefing);
   const showNav = Boolean(view.feedbackUrl);
 
   return (
@@ -161,7 +174,7 @@ export default function BriefingPage() {
           <div className="flex items-center justify-between gap-1.5">
             <div className="min-w-0">
               <p className="truncate text-[10px] font-medium uppercase tracking-wide text-slate-500">
-                {briefing.destination.replace(/_/g, " ")}
+                {formatDestinationLabel(briefing.destination)}
               </p>
               <h1 className="text-sm font-semibold leading-tight">
                 {briefing.date_label}
@@ -173,77 +186,138 @@ export default function BriefingPage() {
           </div>
         </header>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
-          {briefing.days.map((day) => (
-            <section
-              key={day.label}
-              className="flex min-h-0 flex-1 flex-col overflow-hidden rounded border border-slate-200 bg-white"
-            >
-              <div className="shrink-0 border-b border-slate-100 px-2 py-1">
-                <p className="text-[10px] font-medium text-slate-500">{day.label}</p>
-                <h2 className="text-xs font-semibold leading-tight">{day.title}</h2>
-              </div>
-
-              <ul className="min-h-0 flex-1 divide-y divide-slate-100 overflow-hidden">
-                {day.blocks.map((block) => (
-                  <li
-                    key={`${day.label}-${block.time_label}-${block.place_id}`}
-                    className="px-2 py-1"
-                  >
-                    <div className="flex items-start gap-1.5">
-                      <span
-                        className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${dotClassName(block.dot)}`}
-                        aria-hidden
-                      />
-                      <div className="min-w-0 flex-1 space-y-0.5">
-                        <div className="flex flex-wrap items-center gap-1">
-                          <span className="rounded bg-slate-100 px-1 py-px text-[10px] font-semibold text-slate-700">
-                            {block.time_label}
-                          </span>
-                          <h3 className="text-xs font-semibold leading-tight">
-                            {block.title}
-                          </h3>
-                        </div>
-                        <p className="text-[10px] leading-snug text-slate-600">
-                          {block.desc}
-                        </p>
-                      </div>
+        {showDashboard && isAdmin ? (
+          <DashboardView
+            isAdmin={isAdmin}
+            briefing={briefing}
+            onClose={() => setShowDashboard(false)}
+          />
+        ) : (
+          <>
+            {contextLines.length > 0 ? (
+              <section className="shrink-0 rounded border border-slate-200 bg-white px-2 py-1">
+                <h2 className="text-xs font-semibold text-slate-800">작전 컨텍스트</h2>
+                <dl className="mt-0.5 space-y-0.5">
+                  {contextLines.map((line) => (
+                    <div key={line.label} className="grid grid-cols-[4.5rem_1fr] gap-1">
+                      <dt className="text-[10px] font-medium text-slate-500">
+                        {line.label}
+                      </dt>
+                      <dd className="text-[10px] leading-snug text-slate-700">
+                        {line.value}
+                      </dd>
                     </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
+                  ))}
+                </dl>
+              </section>
+            ) : null}
 
-          <section className="shrink-0 rounded border border-slate-200 bg-white px-2 py-1">
-            <h2 className="text-xs font-semibold text-slate-800">체크리스트</h2>
-            <ul className="mt-0.5 grid grid-cols-2 gap-x-2 gap-y-0.5">
-              {briefing.checklist.map((item) => (
-                <li
-                  key={item}
-                  className="flex items-start gap-1 text-[10px] leading-snug text-slate-700"
+            <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
+              {briefing.days.map((day) => (
+                <section
+                  key={day.label}
+                  className="flex min-h-0 flex-1 flex-col overflow-hidden rounded border border-slate-200 bg-white"
                 >
-                  <span className="text-emerald-600" aria-hidden>
-                    ✓
-                  </span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        </div>
+                  <div className="shrink-0 border-b border-slate-100 px-2 py-1">
+                    <p className="text-[10px] font-medium text-slate-500">{day.label}</p>
+                    <h2 className="text-xs font-semibold leading-tight">{day.title}</h2>
+                  </div>
 
-        {showNav ? (
+                  <ul className="min-h-0 flex-1 divide-y divide-slate-100 overflow-hidden">
+                    {day.blocks.map((block) => (
+                      <li
+                        key={`${day.label}-${block.time_label}-${block.place_id}`}
+                        className="px-2 py-1"
+                      >
+                        <div className="flex items-start gap-1.5">
+                          <span
+                            className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${dotClassName(block.dot)}`}
+                            aria-hidden
+                          />
+                          <div className="min-w-0 flex-1 space-y-0.5">
+                            <div className="flex flex-wrap items-center gap-1">
+                              <span className="rounded bg-slate-100 px-1 py-px text-[10px] font-semibold text-slate-700">
+                                {block.time_label}
+                              </span>
+                              <h3 className="text-xs font-semibold leading-tight">
+                                {block.title}
+                              </h3>
+                            </div>
+                            <p className="text-[10px] leading-snug text-slate-600">
+                              {block.desc}
+                            </p>
+                            {block.weather_note ? (
+                              <p
+                                className="rounded border border-amber-200 bg-amber-50 px-1 py-px text-[10px] font-medium leading-snug text-amber-800"
+                                role="note"
+                              >
+                                {block.weather_note}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+
+              <section className="shrink-0 rounded border border-slate-200 bg-white px-2 py-1">
+                <h2 className="text-xs font-semibold text-slate-800">
+                  {BRIEFING_CHECKLIST_HEADING}
+                </h2>
+                <ul className="mt-0.5 grid grid-cols-2 gap-x-2 gap-y-0.5">
+                  {briefing.checklist.map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-start gap-1 text-[10px] leading-snug text-slate-700"
+                    >
+                      <span className="text-emerald-600" aria-hidden>
+                        ✓
+                      </span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              {briefing.pool_exhausted ? (
+                <section
+                  className="shrink-0 rounded border border-amber-200 bg-amber-50 px-2 py-1"
+                  role="note"
+                >
+                  <p className="text-[10px] leading-snug text-amber-800">
+                    현재 장소 풀이 제한적입니다. 조건을 완화하면 더 많은 동선을 볼 수
+                    있습니다.
+                  </p>
+                </section>
+              ) : null}
+            </div>
+          </>
+        )}
+
+        {showNav || isAdmin ? (
           <nav
             className="flex shrink-0 flex-col gap-2"
             aria-label="다음 행동"
           >
-            <a
-              href={view.feedbackUrl}
-              className={`${actionButtonClass} ${actionButtonStateClass(false)}`}
-            >
-              <span className="block">여정 종료 후 피드백 남기기</span>
-            </a>
+            {showNav ? (
+              <a
+                href={view.feedbackUrl}
+                className={`${actionButtonClass} ${actionButtonStateClass(false)}`}
+              >
+                <span className="block">여정 종료 후 피드백 남기기</span>
+              </a>
+            ) : null}
+            {isAdmin && !showDashboard ? (
+              <button
+                type="button"
+                onClick={() => setShowDashboard(true)}
+                className={`${actionButtonClass} border-indigo-500 bg-indigo-600 text-white`}
+              >
+                <span className="block">대시보드 보기</span>
+              </button>
+            ) : null}
           </nav>
         ) : null}
       </div>

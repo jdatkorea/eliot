@@ -12,7 +12,6 @@ function buildConfigSheetWithErrors(): string[][] {
     ["mood_tags", JSON.stringify(DEFAULT_APP_CONFIG.mood_tags), "global", "2026-06-12"],
     ["mood_tag_effects", JSON.stringify(DEFAULT_APP_CONFIG.mood_tag_effects), "global", "2026-06-12"],
     ["templates", '{"base": {broken', "global", "2026-06-12"],
-    ["origin_coords", JSON.stringify(DEFAULT_APP_CONFIG.origin_coords), "global", "2026-06-12"],
     ["rain_prob_threshold", String(DEFAULT_APP_CONFIG.rain_prob_threshold), "global", "2026-06-12"],
     ["", "", "global", "2026-06-12"],
     ["legacy_key", "destination:인천", "destination:인천_근교", "2026-06-12"],
@@ -36,7 +35,7 @@ function main() {
     result.invalid.map((e) => `행${e.rowNumber}/${e.key}`).join(", "),
   );
 
-  const expectedValid = 4;
+  const expectedValid = 3;
   const expectedInvalid = 1;
   const expectedSkipped = 2;
   const hasTemplatesError = result.invalid.some((e) => e.key === "templates");

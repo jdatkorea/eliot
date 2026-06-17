@@ -1,5 +1,11 @@
 import { deliverTripBriefing } from "@/lib/journey/relay-briefing";
-import { parseStartUpdate, parseWebhookBody } from "@/lib/webhook/parse-telegram";
+import {
+  extractChatId,
+  isWebhookClientError,
+  parseStartUpdate,
+  parseWebhookBody,
+} from "@/lib/webhook/parse-telegram";
+import { sendWebhookErrorMessage } from "@/lib/webhook/send-error-message";
 import { sendStartKeyboard } from "@/lib/webhook/send-start-keyboard";
 import { verifyTelegramWebhookSecret } from "@/lib/webhook/verify-webhook-secret";
 
@@ -20,8 +26,9 @@ export async function POST(request: Request) {
     return unauthorized;
   }
 
+  let body: unknown;
   try {
-    const body: unknown = await request.json();
+    body = await request.json();
     console.log("[recv] update_type:", resolveUpdateType(body));
 
     const startUpdate = parseStartUpdate(body);
@@ -55,8 +62,22 @@ export async function POST(request: Request) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.";
+    const status = isWebhookClientError(error) ? 400 : 500;
     console.error("[webhook] 처리 오류:", message);
 
-    return Response.json({ ok: true, error: message }, { status: 200 });
+    const chatId = body !== undefined ? extractChatId(body) : undefined;
+    if (chatId !== undefined) {
+      try {
+        await sendWebhookErrorMessage(chatId, { skipIfNoToken: true });
+      } catch (notifyError) {
+        const notifyMessage =
+          notifyError instanceof Error
+            ? notifyError.message
+            : "알 수 없는 알림 오류";
+        console.error("[webhook] 사용자 알림 실패:", notifyMessage);
+      }
+    }
+
+    return Response.json({ ok: false, error: message }, { status });
   }
 }

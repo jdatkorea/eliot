@@ -1,4 +1,4 @@
--- app_config 필수 시딩 — DEFAULT_APP_CONFIG 기준, origin_coords에 경주 추가
+-- app_config 필수 시딩 — DEFAULT_APP_CONFIG 기준
 -- 재실행 안전: ON CONFLICT DO UPDATE
 
 INSERT INTO public.app_config (key, value, scope) VALUES
@@ -10,9 +10,9 @@ INSERT INTO public.app_config (key, value, scope) VALUES
 (
   'mood_tag_effects',
   '{
-    "baby_tired":    {"blockCountModifier":-1,"radiusCapKm":20,"indoorBias":2},
+    "baby_tired":    {"blockCountModifier":-1,"indoorBias":2},
     "relaxed_pace":  {"blockCountModifier":-1,"relaxedLabels":true},
-    "extend_range":  {"radiusCapKm":120},
+    "extend_range":  {},
     "indoor_only":   {"indoorOnly":true,"indoorBias":3},
     "food_light":    {"mealSubtag":"light"},
     "food_hearty":   {"mealSubtag":"hearty"}
@@ -41,36 +41,8 @@ INSERT INTO public.app_config (key, value, scope) VALUES
   'global'
 ),
 (
-  'origin_coords',
-  '{
-    "인천 송도": {"lat":37.382,"lng":126.657},
-    "경주 시내": {"lat":35.8325,"lng":129.267}
-  }'::jsonb,
-  'global'
-),
-(
   'rain_prob_threshold',
   '50'::jsonb,
-  'global'
-),
-(
-  'default_radius_cap_km',
-  '40'::jsonb,
-  'global'
-),
-(
-  'extend_radius_cap_km',
-  '120'::jsonb,
-  'global'
-),
-(
-  'baby_tired_radius_cap_km',
-  '20'::jsonb,
-  'global'
-),
-(
-  'transport_thresholds',
-  '{"short_km":40,"medium_km":120}'::jsonb,
   'global'
 )
 ON CONFLICT (key) DO UPDATE
