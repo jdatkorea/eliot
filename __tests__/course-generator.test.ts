@@ -3,6 +3,7 @@ import placesFixture from "@/fixtures/places.sample.json";
 import { DEFAULT_APP_CONFIG } from "@/lib/config/app-config";
 import {
   assertNoCrossDayDuplicates,
+  canonicalizeDestination,
   generateCourse,
   generateMultiDayCourse,
 } from "@/lib/engine/course-generator";
@@ -101,5 +102,35 @@ describe("generateMultiDayCourse — 멀티-블록 루프", () => {
 
     expect(result.blocks).toHaveLength(2);
     expect(result.pool_exhausted).toBe(true);
+  });
+});
+
+describe("canonicalizeDestination — '_근교' 변형 표기 정규화", () => {
+  it("'_근교' 접미사를 제거해 같은 권역으로 정규화", () => {
+    expect(canonicalizeDestination("인천_근교")).toBe("인천");
+    expect(canonicalizeDestination("속초_근교")).toBe("속초");
+    expect(canonicalizeDestination("경주")).toBe("경주");
+  });
+
+  it("기본 homeRegion('인천_근교')과 실 데이터 destination('인천')이 region gate를 통과한다 — P0 회귀", () => {
+    const incheonPlace: Place = {
+      id: "p-incheon-1",
+      destination: "인천",
+      name: "테스트 장소",
+      category: "meal",
+      is_outdoor: false,
+      no_kids_zone: false,
+      tags: [],
+    };
+
+    const result = generateCourse({
+      places: [incheonPlace],
+      config,
+      destination: FIXED_DESTINATION,
+      mode: "family",
+      mood_tags: [],
+    });
+
+    expect(result.course.some((p) => p.id === incheonPlace.id)).toBe(true);
   });
 });

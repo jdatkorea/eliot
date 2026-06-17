@@ -102,16 +102,24 @@ function recentExcludedCategories(
   return excluded;
 }
 
+/** "_근교" 접미사는 "해당 권역 또는 근교"를 뜻하는 변형 표기 — 동일 권역으로 정규화한다. */
+const VICINITY_SUFFIX = /_근교$/;
+
+/**
+ * destination 문자열을 canonical 권역 id로 정규화한다.
+ * 예: "인천_근교" → "인천", "속초_근교" → "속초". 순수 함수, IO 없음.
+ */
+export function canonicalizeDestination(raw: string): string {
+  return raw.trim().replace(VICINITY_SUFFIX, "");
+}
+
 function passesRegionGate(
   place: Place,
   homeRegion: string,
   moodTags: string[],
 ): boolean {
   if (moodTags.includes("extend_range")) return true;
-  if (place.destination === homeRegion) return true;
-  return (
-    place.destination.includes(homeRegion) || homeRegion.includes(place.destination)
-  );
+  return canonicalizeDestination(place.destination) === canonicalizeDestination(homeRegion);
 }
 
 function weightedScore(
