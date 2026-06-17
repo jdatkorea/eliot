@@ -1,4 +1,5 @@
 import type { PriorTripFeedback } from "@/lib/engine/types";
+import destinationsData from "@/data/destinations.json";
 
 export const CLOUD_STORAGE_LAST_TRIP_KEY = "last_trip_feedback";
 
@@ -16,6 +17,58 @@ export type TripLocation = {
   lat: number;
   lng: number;
 };
+
+type DestinationCentroid = {
+  destination_id: string;
+  center_lat: number;
+  center_lng: number;
+  default_radius_km: number;
+};
+
+const DESTINATIONS: DestinationCentroid[] = destinationsData;
+
+const EARTH_RADIUS_KM = 6371;
+
+/** 두 좌표 간 대원거리(km). 순수 함수 — IO·외부 호출 없음 (A1/A2 보존). */
+export function haversineDistanceKm(a: TripLocation, b: TripLocation): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const sinDLat = Math.sin(dLat / 2);
+  const sinDLng = Math.sin(dLng / 2);
+  const h =
+    sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLng * sinDLng;
+  return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(h));
+}
+
+/**
+ * 좌표에서 가장 가까운 canonical destination을 정적 레지스트리
+ * (data/destinations.json, build-time 생성)에서 찾는다. radius_km을
+ * 벗어나면 null — 빌드타임 정적 데이터만 사용, 런타임 IO 0건.
+ */
+function findNearestDestination(location: TripLocation): string | null {
+  let nearestId: string | null = null;
+  let nearestDistanceKm = Infinity;
+  let nearestRadiusKm = 0;
+
+  for (const entry of DESTINATIONS) {
+    const distanceKm = haversineDistanceKm(location, {
+      lat: entry.center_lat,
+      lng: entry.center_lng,
+    });
+    if (distanceKm < nearestDistanceKm) {
+      nearestId = entry.destination_id;
+      nearestDistanceKm = distanceKm;
+      nearestRadiusKm = entry.default_radius_km;
+    }
+  }
+
+  return nearestId !== null && nearestDistanceKm <= nearestRadiusKm
+    ? nearestId
+    : null;
+}
 
 export type TelegramWebAppLocation = {
   latitude: number;
@@ -77,9 +130,10 @@ export function isWithinSongdoBounds(lat: number, lng: number): boolean {
 }
 
 export function resolveDestinationFromCoords(lat: number, lng: number): string {
-  return isWithinSongdoBounds(lat, lng)
-    ? SONGDO_DESTINATION
-    : DEFAULT_HOME_REGION;
+  if (isWithinSongdoBounds(lat, lng)) return SONGDO_DESTINATION;
+
+  const nearest = findNearestDestination({ lat, lng });
+  return nearest ?? DEFAULT_HOME_REGION;
 }
 
 export function resolveTelegramMessageDate(

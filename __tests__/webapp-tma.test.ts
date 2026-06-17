@@ -26,6 +26,8 @@ import {
 
 const SONGDO_CENTER = { lat: 37.382, lng: 126.657 };
 const OUTSIDE_SONGDO = { lat: 37.55, lng: 126.98 };
+/** 한국 권역 어디와도 무관 — 어떤 destinations.json 항목도 radius 내에 없는 좌표 */
+const FAR_OUTSIDE_KOREA = { lat: 35.6762, lng: 139.6503 };
 
 type CloudStorageMock = {
   store: Map<string, string>;
@@ -116,12 +118,21 @@ describe("telegram-native — Songdo boundary", () => {
     );
   });
 
-  it("송도 밖 좌표는 기본 홈 리전으로 판정", () => {
+  it("송도 밖이지만 실제 권역 근처 좌표는 최근접 destination으로 판정 — P0 회귀", () => {
     expect(
       isWithinSongdoBounds(OUTSIDE_SONGDO.lat, OUTSIDE_SONGDO.lng),
     ).toBe(false);
     expect(
       resolveDestinationFromCoords(OUTSIDE_SONGDO.lat, OUTSIDE_SONGDO.lng),
+    ).toBe("서울");
+  });
+
+  it("어떤 destination의 radius에도 들지 않는 좌표는 기본 홈 리전으로 폴백", () => {
+    expect(
+      resolveDestinationFromCoords(
+        FAR_OUTSIDE_KOREA.lat,
+        FAR_OUTSIDE_KOREA.lng,
+      ),
     ).toBe("인천_근교");
   });
 });

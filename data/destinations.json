@@ -1,0 +1,368 @@
+[
+  {
+    "destination_id": "가평",
+    "center_lat": 37.8315,
+    "center_lng": 127.5095,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "경주",
+    "center_lat": 35.8562,
+    "center_lng": 129.2247,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "계양",
+    "center_lat": 37.5377,
+    "center_lng": 126.7377,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "고양",
+    "center_lat": 37.6584,
+    "center_lng": 126.832,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "과천",
+    "center_lat": 37.4292,
+    "center_lng": 126.9876,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "관악",
+    "center_lat": 37.4784,
+    "center_lng": 126.9516,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "광명",
+    "center_lat": 37.4795,
+    "center_lng": 126.8646,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "광주",
+    "center_lat": 37.4292,
+    "center_lng": 127.255,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "구로",
+    "center_lat": 37.4954,
+    "center_lng": 126.8874,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "구리",
+    "center_lat": 37.5943,
+    "center_lng": 127.1296,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "구미",
+    "center_lat": 36.1195,
+    "center_lng": 128.3446,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "김포",
+    "center_lat": 37.6152,
+    "center_lng": 126.7159,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "김해",
+    "center_lat": 35.2285,
+    "center_lng": 128.8894,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "남원",
+    "center_lat": 35.4164,
+    "center_lng": 127.3905,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "대구",
+    "center_lat": 35.8714,
+    "center_lng": 128.6014,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "대전",
+    "center_lat": 36.3504,
+    "center_lng": 127.3845,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "보령",
+    "center_lat": 36.3332,
+    "center_lng": 126.6128,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "부산",
+    "center_lat": 35.1796,
+    "center_lng": 129.0756,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "부천",
+    "center_lat": 37.5034,
+    "center_lng": 126.766,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "서울",
+    "center_lat": 37.5665,
+    "center_lng": 126.978,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "서초",
+    "center_lat": 37.4837,
+    "center_lng": 127.0324,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "성남",
+    "center_lat": 37.4201,
+    "center_lng": 127.1262,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "속초",
+    "center_lat": 38.207,
+    "center_lng": 128.5918,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "송도",
+    "center_lat": 37.3894,
+    "center_lng": 126.6557,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "수원",
+    "center_lat": 37.2636,
+    "center_lng": 127.0286,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "시흥",
+    "center_lat": 37.3799,
+    "center_lng": 126.8031,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "안동",
+    "center_lat": 36.5684,
+    "center_lng": 128.7294,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "안산",
+    "center_lat": 37.3219,
+    "center_lng": 126.8309,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "안양",
+    "center_lat": 37.3943,
+    "center_lng": 126.9568,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "양양",
+    "center_lat": 38.0754,
+    "center_lng": 128.619,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "양주",
+    "center_lat": 37.7853,
+    "center_lng": 127.0455,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "양평",
+    "center_lat": 37.4916,
+    "center_lng": 127.4874,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "여수",
+    "center_lat": 34.7604,
+    "center_lng": 127.6622,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "여주",
+    "center_lat": 37.2982,
+    "center_lng": 127.6372,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "영덕",
+    "center_lat": 36.4151,
+    "center_lng": 129.3656,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "영종도",
+    "center_lat": 37.4602,
+    "center_lng": 126.4407,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "용인",
+    "center_lat": 37.2411,
+    "center_lng": 127.1776,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "울산",
+    "center_lat": 35.5384,
+    "center_lng": 129.3114,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "원주",
+    "center_lat": 37.3422,
+    "center_lng": 127.9202,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "의령",
+    "center_lat": 35.3222,
+    "center_lng": 128.2622,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "의성",
+    "center_lat": 36.3528,
+    "center_lng": 128.6972,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "의왕",
+    "center_lat": 37.3447,
+    "center_lng": 126.9683,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "의정부",
+    "center_lat": 37.7381,
+    "center_lng": 127.0337,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "이천",
+    "center_lat": 37.2724,
+    "center_lng": 127.435,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "인덕원",
+    "center_lat": 37.3897,
+    "center_lng": 126.9764,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "인천",
+    "center_lat": 37.4563,
+    "center_lng": 126.7052,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "일산",
+    "center_lat": 37.6584,
+    "center_lng": 126.77,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "전북",
+    "center_lat": 35.8242,
+    "center_lng": 127.148,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "정선",
+    "center_lat": 37.3804,
+    "center_lng": 128.6608,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "제주",
+    "center_lat": 33.4996,
+    "center_lng": 126.5312,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "천안",
+    "center_lat": 36.8151,
+    "center_lng": 127.1139,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "청라",
+    "center_lat": 37.5375,
+    "center_lng": 126.6394,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "춘천",
+    "center_lat": 37.8813,
+    "center_lng": 127.7298,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "충주",
+    "center_lat": 36.991,
+    "center_lng": 127.9259,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "평창",
+    "center_lat": 37.3705,
+    "center_lng": 128.39,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "평택",
+    "center_lat": 36.9921,
+    "center_lng": 127.1129,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "포천",
+    "center_lat": 37.8949,
+    "center_lng": 127.2003,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "포항",
+    "center_lat": 36.019,
+    "center_lng": 129.3435,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "하남",
+    "center_lat": 37.5392,
+    "center_lng": 127.2148,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "화성",
+    "center_lat": 37.1996,
+    "center_lng": 126.8312,
+    "default_radius_km": 40
+  },
+  {
+    "destination_id": "횡성",
+    "center_lat": 37.4917,
+    "center_lng": 127.9853,
+    "default_radius_km": 40
+  }
+]

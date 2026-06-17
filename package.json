@@ -17,7 +17,8 @@
     "cms:sync": "tsx scripts/sync-sheets.ts",
     "cms:sync:dry-run": "tsx scripts/dry-run-sync-validation.ts",
     "cms:sync:config-dry-run": "tsx scripts/dry-run-config-validation.ts",
-    "ingest": "tsx scripts/ingest-spots.ts"
+    "ingest": "tsx scripts/ingest-spots.ts",
+    "destinations:build": "tsx scripts/build-destinations-json.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.1",
