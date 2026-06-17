@@ -80,7 +80,7 @@ function deterministicIndex(seed: string, max: number): number {
   return Math.abs(hash) % max;
 }
 
-function halfDayLabels(config: AppConfig, moodTags: string[]): TimeLabel[] {
+export function halfDayLabels(config: AppConfig, moodTags: string[]): TimeLabel[] {
   const labels = [...config.templates.base.half_day];
   const effects = resolveMoodEffects(config, moodTags);
   const reduction = Math.abs(Math.min(effects.blockCountModifier, 0));

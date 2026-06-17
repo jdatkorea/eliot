@@ -63,17 +63,19 @@ describe("generateBriefing — Joker fallback observability", () => {
     const poolWarn = warnSpy.mock.calls.find(
       ([msg]) =>
         typeof msg === "string" &&
-        msg.includes("[generate-briefing] pool exhausted"),
+        msg.includes("[generateCourse] pool exhausted for block"),
     );
     expect(poolWarn).toBeDefined();
 
     const meta = poolWarn?.[1] as {
-      constraints: { indoor_only: boolean; mood_tags: string[] };
-      places_total: number;
+      dayIndex: number;
+      blockIndex: number;
+      timeLabel: string;
+      destination: string;
     };
-    expect(meta.constraints.indoor_only).toBe(true);
-    expect(meta.constraints.mood_tags).toEqual(["indoor_only"]);
-    expect(meta.places_total).toBe(0);
+    expect(meta.dayIndex).toBe(0);
+    expect(typeof meta.blockIndex).toBe("number");
+    expect(typeof meta.timeLabel).toBe("string");
 
     warnSpy.mockRestore();
   });
@@ -216,7 +218,7 @@ describe("generateBriefing — pool 고갈 rotation", () => {
   });
 });
 
-describe("generateBriefing — duration→block 템플릿 경계값", () => {
+describe("generateBriefing — trip_days→일자 플랜 경계값", () => {
   it("5h → half_day 템플릿 (출발·점심·오후·저녁 4블록)", () => {
     const briefing = generateBriefing(
       briefingInput({
@@ -230,10 +232,10 @@ describe("generateBriefing — duration→block 템플릿 경계값", () => {
     expect(labels).toEqual(["출발", "점심", "오후", "저녁"]);
   });
 
-  it("2박3일(50h) → 3일차 multi_day 플랜", () => {
+  it("2박3일(trip_days:3) → 3일차 플랜", () => {
     const briefing = generateBriefing(
       briefingInput({
-        normalized: { duration: 50, mood_tags: [] },
+        normalized: { trip_days: 3, mood_tags: [] },
       }),
     );
 
