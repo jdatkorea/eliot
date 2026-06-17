@@ -20,12 +20,17 @@ import {
   createServiceRoleClient,
   upsertPlaces,
 } from "./lib/place-sync";
+import {
+  partitionByKnownDestination,
+  resolveKnownDestinationIds,
+} from "./lib/destination-gate";
 
 config({ path: resolve(process.cwd(), ".env.local"), quiet: true });
 config({ path: resolve(process.cwd(), ".env"), quiet: true });
 
 const DATA_DIR = resolve(process.cwd(), "data");
 const MASTER_PATH = join(DATA_DIR, "master_spots.csv");
+const PENDING_GEOCODE_PATH = join(DATA_DIR, "pending_geocode.csv");
 const INCOMING_DIR = join(DATA_DIR, "incoming");
 const ARCHIVE_DIR = join(DATA_DIR, "archive");
 
@@ -157,14 +162,14 @@ function rowsToMasterSpots(rows: string[][]): MasterSpot[] {
   return result.places.map(placeToMasterSpot);
 }
 
-async function loadMasterMap(): Promise<Map<string, MasterSpot>> {
+async function loadSpotsCsv(path: string): Promise<Map<string, MasterSpot>> {
   const map = new Map<string, MasterSpot>();
 
-  if (!existsSync(MASTER_PATH)) {
+  if (!existsSync(path)) {
     return map;
   }
 
-  const rows = await readCsvRows(MASTER_PATH);
+  const rows = await readCsvRows(path);
   const spots = rowsToMasterSpots(rows);
 
   for (const spot of spots) {
@@ -172,6 +177,10 @@ async function loadMasterMap(): Promise<Map<string, MasterSpot>> {
   }
 
   return map;
+}
+
+async function loadMasterMap(): Promise<Map<string, MasterSpot>> {
+  return loadSpotsCsv(MASTER_PATH);
 }
 
 function formatBoolean(value: boolean): string {
@@ -231,6 +240,13 @@ async function main() {
   const masterMap = await loadMasterMap();
   const existingCount = masterMap.size;
 
+  // 이전 run에서 격리된 항목도 후보 풀에 포함 — destination이 이후 canonical
+  // 레지스트리에 등록되면 다음 run에서 자동으로 master로 승격된다.
+  const pendingMap = await loadSpotsCsv(PENDING_GEOCODE_PATH);
+  for (const [key, spot] of pendingMap) {
+    masterMap.set(key, spot);
+  }
+
   const incomingFiles = listIncomingCsvFiles();
   let incomingCount = 0;
 
@@ -247,21 +263,45 @@ async function main() {
   const totalCount = masterMap.size;
 
   console.log(`[Ingest] 기존 마스터 데이터: ${existingCount}건`);
+  console.log(`[Ingest] 격리(pending_geocode) 재검토 대상: ${pendingMap.size}건`);
   console.log(`[Ingest] 신규 읽어들인 데이터: ${incomingCount}건`);
-  console.log(`[Ingest] 중복 제거 및 갱신된 총 마스터 데이터: ${totalCount}건`);
+  console.log(`[Ingest] 중복 제거 및 갱신된 총 후보 데이터: ${totalCount}건`);
 
-  const masterCsv = formatMasterCsv([...masterMap.values()]);
+  const supabase = createServiceRoleClient();
+  const knownDestinations = await resolveKnownDestinationIds(supabase);
+  const { accepted, quarantined } = partitionByKnownDestination(
+    [...masterMap.values()],
+    knownDestinations,
+  );
+
+  if (quarantined.length > 0) {
+    const uniqueDests = new Set(quarantined.map((s) => s.destination));
+    for (const dest of uniqueDests) {
+      console.warn(
+        `[Ingest] destination "${dest}"이 canonical 레지스트리에 없습니다 — ` +
+          `격리(data/pending_geocode.csv)되며 Supabase에 적재되지 않습니다. ` +
+          `scripts/lib/destination-centroids.ts 또는 destinations 테이블에 추가하세요.`,
+      );
+    }
+  }
+
+  const masterCsv = formatMasterCsv(accepted);
   await writeFile(MASTER_PATH, masterCsv, "utf-8");
 
-  const places = [...masterMap.values()].map(masterSpotToPlace);
-  const supabase = createServiceRoleClient();
+  const pendingCsv = formatMasterCsv(quarantined);
+  await writeFile(PENDING_GEOCODE_PATH, pendingCsv, "utf-8");
+
+  const places = accepted.map(masterSpotToPlace);
   await upsertPlaces(supabase, places);
 
   for (const filePath of incomingFiles) {
     archiveIncomingFile(filePath);
   }
 
-  console.log("[Ingest] Supabase 동기화 완료 및 파일 아카이빙 완료.");
+  console.log(
+    `[Ingest] Supabase 동기화 완료 (${accepted.length}건 적재, ` +
+      `${quarantined.length}건 격리) 및 파일 아카이빙 완료.`,
+  );
 }
 
 if (require.main === module) {

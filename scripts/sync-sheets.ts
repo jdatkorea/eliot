@@ -28,6 +28,10 @@ import {
   createServiceRoleClient,
   upsertPlaces,
 } from "./lib/place-sync";
+import {
+  partitionByKnownDestination,
+  resolveKnownDestinationIds,
+} from "./lib/destination-gate";
 
 config({ path: resolve(process.cwd(), ".env.local"), quiet: true });
 config({ path: resolve(process.cwd(), ".env"), quiet: true });
@@ -115,23 +119,14 @@ export async function syncSheetsToSupabase(): Promise<SyncSheetsResult> {
 
     const supabase = createServiceRoleClient();
 
-    const { data: destRows } = await supabase
-      .from("destinations")
-      .select("destination_id");
-    const knownDestinations = new Set(
-      (destRows ?? []).map((r: { destination_id: string }) => r.destination_id),
-    );
-    if (knownDestinations.size > 0) {
-      const unknownDests = new Set(
-        places
-          .map((p) => p.destination)
-          .filter((d) => !knownDestinations.has(d)),
+    const knownDestinations = await resolveKnownDestinationIds(supabase);
+    const { quarantined } = partitionByKnownDestination(places, knownDestinations);
+    for (const dest of new Set(quarantined.map((p) => p.destination))) {
+      console.warn(
+        `[warn] places.destination "${dest}"이 알려진 destination 레지스트리에 없습니다 ` +
+          `(scripts/lib/destination-centroids.ts 정적 등록 + destinations 테이블 합산 기준) — ` +
+          `먼저 등록하세요. (sync-sheets는 ingest-spots와 달리 격리하지 않고 경고만 출력합니다.)`,
       );
-      for (const dest of unknownDests) {
-        console.warn(
-          `[warn] places.destination "${dest}"이 destinations 테이블에 없습니다 — 해당 destination 행을 먼저 추가하세요.`,
-        );
-      }
     }
 
     if (places.length > 0) {
