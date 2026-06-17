@@ -2,9 +2,7 @@
  * Layer A importer — 로컬 CSV → places base 매핑 (SEED 전용, 오프라인)
  *
  * CSV 컬럼 스키마 (헤더 행 필수):
- *   id, destination, name, category, lat, lng,
- *   curtail_count, is_outdoor, no_kids_zone, break_time,
- *   naver_url, last_verified, notes, tags
+ *   id, destination, name, category, is_outdoor, no_kids_zone, tags
  *
  * 실행:
  *   SYNC_EXECUTE=true npx tsx scripts/import-tour-data.ts data/tour-source/gyeongju-sample.csv
@@ -31,9 +29,8 @@ const REQUIRED_COLUMNS = [
   "destination",
   "name",
   "category",
-  "lat",
-  "lng",
-  "last_verified",
+  "is_outdoor",
+  "no_kids_zone",
 ] as const;
 
 const VALID_CATEGORIES = new Set(["meal", "cafe", "activity", "view", "kids"]);
@@ -49,7 +46,13 @@ export type ImportResult = {
 
 function parseBoolean(val: string | undefined): boolean {
   const v = (val ?? "").trim().toLowerCase();
-  return v === "true" || v === "1" || v === "yes" || v === "y";
+  if (v === "false" || v === "0" || v === "no" || v === "n" || v === "") {
+    return false;
+  }
+  if (v === "true" || v === "1" || v === "yes" || v === "y") {
+    return true;
+  }
+  return false;
 }
 
 function parseCsvLine(line: string): string[] {
@@ -121,11 +124,8 @@ export function parseImportCsv(rows: string[][]): ImportResult {
     const name = col(row, "name");
     const destination = col(row, "destination");
     const categoryRaw = col(row, "category");
-    const latRaw = col(row, "lat");
-    const lngRaw = col(row, "lng");
-    const lastVerified = col(row, "last_verified");
 
-    if (!name || !destination || !categoryRaw || !latRaw || !lngRaw || !lastVerified) {
+    if (!name || !destination || !categoryRaw) {
       errors.push({ row: rowNum, id, reason: "필수 필드 누락" });
       continue;
     }
@@ -136,13 +136,6 @@ export function parseImportCsv(rows: string[][]): ImportResult {
         id,
         reason: `category 값 오류: "${categoryRaw}" (meal/cafe/activity/view/kids 중 하나)`,
       });
-      continue;
-    }
-
-    const lat = Number(latRaw);
-    const lng = Number(lngRaw);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      errors.push({ row: rowNum, id, reason: `위경도 파싱 실패: lat=${latRaw} lng=${lngRaw}` });
       continue;
     }
 
@@ -159,24 +152,13 @@ export function parseImportCsv(rows: string[][]): ImportResult {
       console.warn(`[row ${rowNum}] ${name}: 화이트리스트 외 태그 제거됨 — ${unknown.join(", ")}`);
     }
 
-    const curtailRaw = col(row, "curtail_count");
-    const curtail = curtailRaw ? (Number.isFinite(Number(curtailRaw)) ? Number(curtailRaw) : 1) : 1;
-
     places.push({
       id,
       destination,
       name,
       category: categoryRaw as Place["category"],
-      lat,
-      lng,
-      curtail_count: curtail,
       is_outdoor: parseBoolean(col(row, "is_outdoor")),
       no_kids_zone: parseBoolean(col(row, "no_kids_zone")),
-      break_time: col(row, "break_time") || null,
-      naver_url: col(row, "naver_url") || "",
-      backup_place_id: col(row, "backup_place_id") || null,
-      last_verified: lastVerified,
-      notes: col(row, "notes") || null,
       tags,
       stroller_friendly,
       has_nursing_room,
@@ -200,47 +182,32 @@ async function main() {
     process.exit(1);
   }
 
-  const absolutePath = resolve(process.cwd(), csvPath);
-  console.log(`[import] CSV 읽기: ${absolutePath}`);
-
-  const rows = await readCsvRows(absolutePath);
+  const rows = await readCsvRows(resolve(csvPath));
   const result = parseImportCsv(rows);
+
+  console.log(
+    `파싱 완료: ${result.parsed}건, 스킵 ${result.skipped}, 오류 ${result.invalid}`,
+  );
 
   if (result.errors.length > 0) {
     for (const err of result.errors) {
-      console.warn(`[skip] 행 ${err.row} / ${err.id}: ${err.reason}`);
+      console.warn(`  [row ${err.row}] ${err.id}: ${err.reason}`);
     }
   }
 
-  const shouldExecute = process.env.SYNC_EXECUTE === "true";
-
-  if (!shouldExecute) {
-    console.log(
-      `[dry-run] parsed=${result.parsed} skipped=${result.skipped} invalid=${result.invalid}`,
-    );
-    for (const p of result.places) {
-      console.log(
-        `  ${p.id} | ${p.name} | ${p.category} | stroller=${p.stroller_friendly} nursing=${p.has_nursing_room} tags=[${p.tags.join(",")}]`,
-      );
-    }
+  if (process.env.SYNC_EXECUTE !== "true") {
+    console.log("SYNC_EXECUTE=true 가 아니므로 DB write 생략 (dry-run)");
     return;
-  }
-
-  if (result.places.length === 0) {
-    throw new Error("유효한 places가 0건입니다 — CSV 파싱 오류를 확인하세요.");
   }
 
   const supabase = createServiceRoleClient();
   const upserted = await upsertPlaces(supabase, result.places);
-  console.log(`[import] upserted=${upserted.length}`);
-  for (const row of upserted) {
-    console.log(`  - ${row.name} (${row.id})`);
-  }
+  console.log(`Supabase upsert 완료: ${upserted.length}건`);
 }
 
-if ((process.argv[1] ?? "").includes("import-tour-data")) {
+if (require.main === module) {
   main().catch((err: unknown) => {
-    console.error(err instanceof Error ? err.message : err);
+    console.error(err);
     process.exit(1);
   });
 }

@@ -25,18 +25,8 @@ export function mapPlaceRow(place: Place, idCache: Map<string, string>) {
     destination: place.destination,
     name: place.name,
     category: place.category,
-    lat: place.lat,
-    lng: place.lng,
-    curtail_count: place.curtail_count,
     is_outdoor: place.is_outdoor,
     no_kids_zone: place.no_kids_zone,
-    break_time: place.break_time,
-    naver_url: place.naver_url,
-    backup_place_id: place.backup_place_id
-      ? toPlaceUuid(place.backup_place_id, idCache)
-      : null,
-    last_verified: place.last_verified,
-    notes: place.notes,
     tags: place.tags,
     stroller_friendly: place.stroller_friendly ?? false,
     has_nursing_room: place.has_nursing_room ?? false,

@@ -12,17 +12,14 @@ import {
   parsePlacesFromSheet,
 } from "@/lib/seed/validate-places";
 
-type FixturePlace = Place & { status?: string };
-
-function placeToSheetRow(place: FixturePlace): string[] {
+function placeToSheetRow(place: Place): string[] {
   return PLACE_SHEET_HEADERS.map((header) => {
-    if (header === "status") {
-      return place.status ?? "active";
-    }
-
     const value = place[header as keyof Place];
     if (value === null || value === undefined) {
       return "";
+    }
+    if (Array.isArray(value)) {
+      return value.join(",");
     }
     return String(value);
   });
@@ -30,7 +27,7 @@ function placeToSheetRow(place: FixturePlace): string[] {
 
 function buildDummySheetRows(): string[][] {
   const fixturePath = resolve(process.cwd(), "fixtures/places.sample.json");
-  const places = JSON.parse(readFileSync(fixturePath, "utf-8")) as FixturePlace[];
+  const places = JSON.parse(readFileSync(fixturePath, "utf-8")) as Place[];
 
   const header = [...PLACE_SHEET_HEADERS];
   const validRows = places.slice(0, 5).map(placeToSheetRow);
@@ -40,18 +37,9 @@ function buildDummySheetRows(): string[][] {
     "category",
     "id",
     "destination",
-    "lng",
-    "lat",
-    "curtail_count",
     "is_outdoor",
     "no_kids_zone",
-    "break_time",
-    "naver_url",
-    "backup_place_id",
-    "last_verified",
-    "notes",
     "tags",
-    "status",
   ];
 
   const reorderRow = (row: string[]): string[] =>
@@ -63,46 +51,15 @@ function buildDummySheetRows(): string[][] {
     rows.push(reorderRow(row));
   }
 
-  // 의도적 오류 행들
-  rows.push(
-    reorderRow([
-      "p_bad_lat",
-      "인천_근교",
-      "잘못된 위도",
-      "cafe",
-      "not-a-number",
-      "126.6",
-      "2",
-      "FALSE",
-      "0",
-      "",
-      "https://map.naver.com/bad",
-      "",
-      "2026-06-01",
-      "",
-      "",
-      "active",
-    ]),
-  );
-
   rows.push(
     reorderRow([
       "",
       "인천_근교",
       "id 누락",
       "meal",
-      "37.4",
-      "126.6",
-      "1",
       "true",
       "false",
       "",
-      "https://map.naver.com/missing-id",
-      "",
-      "2026-06-01",
-      "",
-      "",
-      "active",
     ]),
   );
 
@@ -112,18 +69,9 @@ function buildDummySheetRows(): string[][] {
       "인천_근교",
       "",
       "view",
-      "37.4",
-      "126.6",
-      "1",
       "true",
       "false",
       "",
-      "https://map.naver.com/missing-name",
-      "",
-      "2026-06-01",
-      "",
-      "",
-      "active",
     ]),
   );
 
@@ -133,39 +81,9 @@ function buildDummySheetRows(): string[][] {
       "인천_근교",
       "잘못된 카테고리",
       "restaurant",
-      "37.4",
-      "126.6",
-      "1",
-      "yes",
-      "no",
-      "",
-      "https://map.naver.com/bad-cat",
-      "",
-      "2026-06-01",
-      "",
-      "",
-      "active",
-    ]),
-  );
-
-  rows.push(
-    reorderRow([
-      "p_archived",
-      "인천_근교",
-      "보관됨 장소",
-      "meal",
-      "37.4",
-      "126.6",
-      "1",
       "true",
       "false",
       "",
-      "https://map.naver.com/archived",
-      "",
-      "2026-06-01",
-      "",
-      "",
-      "archived",
     ]),
   );
 
@@ -181,13 +99,13 @@ function main() {
 
   console.log("\n=== 결과 ===");
   console.log(`유효(upsert 대상): ${places.length}건`);
-  console.log(`스킵(빈 id / archived): ${skipped}건`);
+  console.log(`스킵(빈 id): ${skipped}건`);
   console.log(`무효(검증 실패): ${invalid.length}건`);
   console.log("\n유효 장소 id:", places.map((p) => p.id).join(", "));
 
   const expectedValid = 5;
-  const expectedSkipped = 2;
-  const expectedInvalid = 3;
+  const expectedSkipped = 1;
+  const expectedInvalid = 2;
 
   const ok =
     places.length === expectedValid &&

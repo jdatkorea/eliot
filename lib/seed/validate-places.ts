@@ -10,24 +10,15 @@ export const PLACE_CATEGORIES = [
   "kids",
 ] as const satisfies readonly PlaceCategory[];
 
-/** Google Sheets `places` 탭에서 인식하는 헤더 키 (소문자 정규화 기준) */
+/** CSV / Sheets `places` 탭에서 인식하는 헤더 키 (소문자 정규화 기준) */
 export const PLACE_SHEET_HEADERS = [
   "id",
   "destination",
   "name",
   "category",
-  "lat",
-  "lng",
-  "curtail_count",
   "is_outdoor",
   "no_kids_zone",
-  "break_time",
-  "naver_url",
-  "backup_place_id",
-  "last_verified",
-  "notes",
   "tags",
-  "status",
 ] as const;
 
 export type PlaceSheetHeader = (typeof PLACE_SHEET_HEADERS)[number];
@@ -68,11 +59,6 @@ function parseSheetBoolean(value: unknown): boolean {
   return false;
 }
 
-function parseNullableString(value: unknown): string | null {
-  const trimmed = normalizeCell(value);
-  return trimmed === "" ? null : trimmed;
-}
-
 /** 시트 셀: 쉼표 구분 태그 → `string[]` (빈 셀 → `[]`) */
 function parseSheetTags(value: unknown): string[] {
   const trimmed = normalizeCell(value);
@@ -85,51 +71,16 @@ function parseSheetTags(value: unknown): string[] {
     .filter((tag) => tag.length > 0);
 }
 
-function parseSheetNumber(
-  value: unknown,
-  fallback?: number,
-): number | undefined {
-  const trimmed = normalizeCell(value);
-  if (trimmed === "") {
-    return fallback;
-  }
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
 const requiredString = (field: string) =>
   z
     .preprocess(normalizeCell, z.string())
     .refine((value) => value.length > 0, `${field}는 필수입니다`);
 
-const sheetLatLng = (field: string) =>
-  z.preprocess(
-    normalizeCell,
-    z
-      .string()
-      .min(1, `${field}는 필수입니다`)
-      .refine(
-        (value) => Number.isFinite(Number(value)),
-        `${field}는 유효한 숫자여야 합니다`,
-      )
-      .transform((value) => Number(value)),
-  );
-
-const sheetCurtailCount = z.preprocess(
-  (value) => parseSheetNumber(value, 0) ?? 0,
-  z.number().int().nonnegative(),
-);
-
 const sheetBoolean = z.preprocess(parseSheetBoolean, z.boolean());
-
-const nullableString = z.preprocess(parseNullableString, z.string().nullable());
 
 const sheetTags = z.preprocess(parseSheetTags, z.array(z.string()));
 
-/**
- * 시트 원시 문자열 입력 → Engine `Place` 계약으로 변환·검증.
- * `status`는 sync 단계에서 archived 필터링에만 사용하며 DB에는 저장하지 않는다.
- */
+/** 시트 원시 문자열 입력 → Engine `Place` 계약으로 변환·검증 */
 export const SheetPlaceSchema = z
   .object({
     id: requiredString("id"),
@@ -146,21 +97,9 @@ export const SheetPlaceSchema = z
           "category는 meal/cafe/activity/view/kids 중 하나여야 합니다",
         ),
     ),
-    lat: sheetLatLng("lat"),
-    lng: sheetLatLng("lng"),
-    curtail_count: sheetCurtailCount,
     is_outdoor: sheetBoolean,
     no_kids_zone: sheetBoolean,
-    break_time: nullableString,
-    naver_url: requiredString("naver_url"),
-    backup_place_id: nullableString,
-    last_verified: requiredString("last_verified"),
-    notes: nullableString,
     tags: sheetTags,
-    status: z.preprocess(
-      (value) => normalizeCell(value) || "active",
-      z.enum(["active", "archived"]).optional(),
-    ),
   })
   .transform((row): Place => {
     const { tags, stroller_friendly, has_nursing_room, unknown } = classifyTags(row.tags);
@@ -176,16 +115,8 @@ export const SheetPlaceSchema = z
       destination: row.destination,
       name: row.name,
       category: row.category,
-      lat: row.lat,
-      lng: row.lng,
-      curtail_count: row.curtail_count,
       is_outdoor: row.is_outdoor,
       no_kids_zone: row.no_kids_zone,
-      break_time: row.break_time,
-      naver_url: row.naver_url,
-      backup_place_id: row.backup_place_id,
-      last_verified: row.last_verified,
-      notes: row.notes,
       tags,
       stroller_friendly,
       has_nursing_room,
@@ -236,12 +167,6 @@ export function parsePlacesFromSheet(
     const id = (raw.id ?? "").trim();
 
     if (!id) {
-      skipped += 1;
-      continue;
-    }
-
-    const status = (raw.status ?? "active").trim().toLowerCase();
-    if (status === "archived") {
       skipped += 1;
       continue;
     }
@@ -298,17 +223,8 @@ export function rowToRawInput(
     destination: cell("destination"),
     name: cell("name"),
     category: cell("category"),
-    lat: cell("lat"),
-    lng: cell("lng"),
-    curtail_count: cell("curtail_count"),
     is_outdoor: cell("is_outdoor"),
     no_kids_zone: cell("no_kids_zone"),
-    break_time: cell("break_time"),
-    naver_url: cell("naver_url"),
-    backup_place_id: cell("backup_place_id"),
-    last_verified: cell("last_verified"),
-    notes: cell("notes"),
     tags: cell("tags"),
-    status: cell("status"),
   };
 }

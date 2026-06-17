@@ -318,7 +318,6 @@ async function scanSangaFiles(
       );
     } finally {
       rl.close();
-      decodedStream.destroy();
       stream.destroy();
     }
 

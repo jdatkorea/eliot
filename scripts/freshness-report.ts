@@ -2,8 +2,7 @@
  * 장소 신선도 리포트 — 폐기 후보 플래그 (자동 삭제 없음, 리포트만)
  *
  * 판정 기준:
- *   last_social_seen (있으면 우선) 또는 last_verified 기준으로
- *   STALE_DAYS 이상 업데이트 없으면 "폐기 후보" 출력.
+ *   last_social_seen 기준으로 STALE_DAYS 이상 업데이트 없으면 "폐기 후보" 출력.
  *
  * 실행:
  *   npx tsx scripts/freshness-report.ts [--stale-days=180]
@@ -37,8 +36,8 @@ async function main() {
 
   const { data, error } = await supabase
     .from("places")
-    .select("id, name, destination, last_verified, last_social_seen")
-    .order("last_verified", { ascending: true });
+    .select("id, name, destination, last_social_seen")
+    .order("last_social_seen", { ascending: true, nullsFirst: true });
 
   if (error) {
     console.error(`places SELECT 실패: ${error.message}`);
@@ -50,9 +49,8 @@ async function main() {
   const fresh: typeof rows = [];
 
   for (const row of rows) {
-    const signalDate = (row as Record<string, unknown>).last_social_seen as string | null | undefined
-      ?? row.last_verified;
-    const age = daysSince(signalDate as string | null);
+    const signalDate = row.last_social_seen;
+    const age = daysSince(signalDate);
     if (age === null || age >= staleDays) {
       stale.push(row);
     } else {
@@ -66,11 +64,9 @@ async function main() {
   if (stale.length > 0) {
     console.log("⚠ 폐기 후보 (최신 신호 없음 또는 기준일 초과):");
     for (const row of stale) {
-      const r = row as Record<string, unknown>;
-      const socialSeen = r.last_social_seen as string | null | undefined;
-      const age = daysSince((socialSeen ?? row.last_verified) as string | null);
+      const age = daysSince(row.last_social_seen);
       console.log(
-        `  - ${row.id} | ${row.name} | ${row.destination} | last_verified=${row.last_verified}${socialSeen ? ` | last_social_seen=${socialSeen}` : ""} | ${age ?? "날짜불명"}일 경과`,
+        `  - ${row.id} | ${row.name} | ${row.destination} | last_social_seen=${row.last_social_seen ?? "(없음)"} | ${age ?? "날짜불명"}일 경과`,
       );
     }
   }

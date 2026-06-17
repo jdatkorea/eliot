@@ -38,17 +38,9 @@ const PLACE_COMPARE_FIELDS = [
   "destination",
   "name",
   "category",
-  "lat",
-  "lng",
-  "curtail_count",
   "is_outdoor",
   "no_kids_zone",
-  "break_time",
-  "naver_url",
-  "backup_place_id",
-  "last_verified",
-  "notes",
-] as const satisfies readonly (keyof Omit<PlaceDbRow, "id">)[];
+] as const satisfies readonly (keyof Omit<PlaceDbRow, "id" | "tags" | "stroller_friendly" | "has_nursing_room">)[];
 
 function hasGoogleSheetsEnv(): boolean {
   return Boolean(
@@ -116,12 +108,6 @@ function parsePlacesFromSheet(rows: string[][]): {
       continue;
     }
 
-    const status = (raw.status ?? "active").trim().toLowerCase();
-    if (status === "archived") {
-      skipped += 1;
-      continue;
-    }
-
     const result = SheetPlaceSchema.safeParse(raw);
     if (result.success) {
       places.push(result.data);
@@ -149,12 +135,7 @@ function defaultConfigRows(): AppConfigRow[] {
     ["mood_tags", DEFAULT_APP_CONFIG.mood_tags],
     ["mood_tag_effects", DEFAULT_APP_CONFIG.mood_tag_effects],
     ["templates", DEFAULT_APP_CONFIG.templates],
-    ["origin_coords", DEFAULT_APP_CONFIG.origin_coords],
     ["rain_prob_threshold", DEFAULT_APP_CONFIG.rain_prob_threshold],
-    ["default_radius_cap_km", DEFAULT_APP_CONFIG.default_radius_cap_km],
-    ["extend_radius_cap_km", DEFAULT_APP_CONFIG.extend_radius_cap_km],
-    ["baby_tired_radius_cap_km", DEFAULT_APP_CONFIG.baby_tired_radius_cap_km],
-    ["transport_thresholds", DEFAULT_APP_CONFIG.transport_thresholds],
   ];
 
   return entries.map(([key, value]) => ({
@@ -246,7 +227,7 @@ function formatBrief(value: unknown): string {
 }
 
 function summarizeFieldChange(field: string, before: unknown, after: unknown): string {
-  if (field === "templates" || field === "mood_tag_effects" || field === "origin_coords") {
+  if (field === "templates" || field === "mood_tag_effects") {
     if (
       typeof before === "object" &&
       before !== null &&
