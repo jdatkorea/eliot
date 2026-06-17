@@ -53,6 +53,7 @@ export type BriefingContextMeta = {
   sunset_time?: string;
   constraints?: string;
   duration_hours?: number;
+  trip_days?: number;
   destination?: string;
   location?: TripLocation;
   prior_trip_feedback?: PriorTripFeedback;
@@ -152,6 +153,8 @@ export type TripRequest = {
   departure_time?: string;
   return_time?: string;
   duration_hours?: number;
+  /** 여행 일수: 1=당일치기, 2=1박2일, 3=2박3일 */
+  trip_days?: number;
   origin?: string;
   return_location?: string;
   destination?: string;
@@ -168,6 +171,8 @@ export type TripRequest = {
 
 export type NormalizedTrip = {
   duration: number;
+  /** 멀티-블록 루프 횟수 (일수). 미지정 시 1 */
+  trip_days?: number;
   origin: string;
   mood_tags: string[];
   mood_intensity?: number;

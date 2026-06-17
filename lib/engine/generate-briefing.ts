@@ -3,6 +3,10 @@ import {
   resolveMoodEffects,
   weatherKeyFromRainProb,
 } from "./apply-config";
+import {
+  generateMultiDayCourse,
+  type CourseDayBlock,
+} from "./course-generator";
 import type {
   AppConfig,
   Block,
@@ -232,6 +236,68 @@ function defaultWeather(): Briefing["weather"] {
   };
 }
 
+function dayTitleForIndex(index: number, total: number): string {
+  if (total === 1) return "당일 코스";
+  if (index === 0) return "첫째 날";
+  if (index === total - 1) return "마지막 날";
+  return "둘째 날";
+}
+
+function blocksFromCourseDays(
+  courseDays: CourseDayBlock[],
+  input: GenerateBriefingInput,
+  weatherKey: ReturnType<typeof weatherKeyFromRainProb>,
+  rainNumeric: number,
+): { label: string; title: string; blocks: Block[] }[] {
+  const { normalized, config } = input;
+  const effects = resolveMoodEffects(config, normalized.mood_tags);
+  const relaxedPrefix = effects.relaxedLabels ? "여유롭게 " : "";
+
+  return courseDays.map((dayBlock, dayIndex) => {
+    const timeLabels = lookupBlockTemplate(
+      config,
+      COURSE_BLOCK_HOURS,
+      normalized.mood_tags,
+    );
+    const blocks: Block[] = dayBlock.course.map((place, blockIndex) => {
+      const timeLabel = timeLabels[blockIndex] ?? timeLabels[timeLabels.length - 1]!;
+      const desc = fillDescTemplate(
+        config,
+        place.category,
+        normalized.mood_tags,
+        weatherKey,
+        place.name,
+      );
+      const block: Block = {
+        time_label: timeLabel,
+        place_id: place.id,
+        title: `${relaxedPrefix}${place.name}`,
+        desc,
+        dot: resolveDot(place.category),
+      };
+      if (place.is_outdoor === true) {
+        if (
+          Number.isFinite(rainNumeric) &&
+          rainNumeric >= config.rain_prob_threshold
+        ) {
+          block.weather_note = "우천 시 실내 대안 검토";
+        } else {
+          block.weather_note = "야외 장소 — 날씨 확인 후 이동";
+        }
+      }
+      return block;
+    });
+
+    return {
+      label: `${dayBlock.day}일차`,
+      title: dayTitleForIndex(dayIndex, courseDays.length),
+      blocks,
+    };
+  });
+}
+
+const COURSE_BLOCK_HOURS = 5;
+
 export function generateBriefing(input: GenerateBriefingInput): Briefing {
   const { normalized, places, feedback_events, config } = input;
   const weather = input.weather ?? defaultWeather();
@@ -254,14 +320,35 @@ export function generateBriefing(input: GenerateBriefingInput): Briefing {
   const weatherKey = weatherKeyFromRainProb(config, weather.rain_prob);
   const rainNumeric = parseInt(weather.rain_prob.replace(/[^0-9]/g, ""), 10);
 
-  const dayPlan = buildDayPlan(config, normalized.duration, normalized.mood_tags);
-  const usedPlaceIds = new Set<string>();
+  let days: { label: string; title: string; blocks: Block[] }[];
   let poolExhausted = false;
 
-  const days = dayPlan.map((day, dayIndex) => {
-    const blocks: Block[] = [];
+  if ((normalized.trip_days ?? 1) > 1) {
+    const multiDay = generateMultiDayCourse({
+      duration: (normalized.trip_days ?? 1) as 1 | 2 | 3,
+      places,
+      config,
+      destination: homeRegion,
+      mode: normalized.mode,
+      mood_tags: normalized.mood_tags,
+      origin: normalized.origin,
+      feedback_events,
+    });
+    days = blocksFromCourseDays(
+      multiDay.blocks,
+      input,
+      weatherKey,
+      rainNumeric,
+    );
+    poolExhausted = multiDay.pool_exhausted ?? false;
+  } else {
+    const dayPlan = buildDayPlan(config, normalized.duration, normalized.mood_tags);
+    const usedPlaceIds = new Set<string>();
 
-    day.blocks.forEach((timeLabel, blockIndex) => {
+    days = dayPlan.map((day, dayIndex) => {
+      const blocks: Block[] = [];
+
+      day.blocks.forEach((timeLabel, blockIndex) => {
       const preferredCategories = config.templates.block_category_map[timeLabel];
       const seed = [
         normalized.duration,
@@ -367,7 +454,8 @@ export function generateBriefing(input: GenerateBriefingInput): Briefing {
     });
 
     return { label: day.label, title: day.title, blocks };
-  });
+    });
+  }
 
   const transportAdvice = resolveTransportAdvice(normalized.mood_tags);
   const checklist = buildChecklist(config, normalized.mode, weather.rain_prob);

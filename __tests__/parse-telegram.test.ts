@@ -32,6 +32,7 @@ describe("buildTripRequest (WebApp payload)", () => {
     expect(payload).toEqual({
       start_mode: "duration",
       duration_hours: FIXED_DURATION_HOURS,
+      trip_days: 1,
       origin: FIXED_BASE_CAMP,
       return_location: FIXED_BASE_CAMP,
       mood_tags: [],
@@ -47,6 +48,7 @@ describe("buildTripRequest (WebApp payload)", () => {
 
   it("가변 필드 trim 후 페이로드에 반영", () => {
     const payload = buildTripRequest({
+      trip_days: 2,
       weather: "  맑음  ",
       mood_intensity: 50,
       sunset_time: " 20:30 ",
@@ -136,13 +138,14 @@ describe("parseWebhookBody (Telegram web_app_data)", () => {
 });
 
 describe("WebApp 모바일 레이아웃 불변식", () => {
-  it("고정·가변 필드 수가 명세와 일치 (고정 2 + 가변 4)", () => {
+  it("고정·가변 필드 수가 명세와 일치 (고정 2 + 가변 5)", () => {
     const fixedKeys = ["operation_time", "base_camp"] as const;
     const dynamicKeys = Object.keys(DEFAULT_WEBAPP_FORM);
 
     expect(fixedKeys).toHaveLength(2);
-    expect(dynamicKeys).toHaveLength(4);
+    expect(dynamicKeys).toHaveLength(5);
     expect(dynamicKeys).toEqual([
+      "trip_days",
       "weather",
       "mood_intensity",
       "sunset_time",

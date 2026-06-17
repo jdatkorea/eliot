@@ -154,6 +154,7 @@ export function buildGenerateBriefingOptions(
   let trip_context: BriefingContextMeta = {
     ...context,
     duration_hours: FIXED_DURATION_HOURS,
+    trip_days: tripRequest.trip_days,
     destination: homeRegion,
     ...(tripRequest.location ? { location: tripRequest.location } : {}),
   };

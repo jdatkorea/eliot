@@ -42,4 +42,8 @@ next-env.d.ts
 .env.local
 .env.*
 
+# Local / raw data (master_spots.csv is tracked intentionally)
+/data/incoming/
+/data/archive/
+
 .vercel

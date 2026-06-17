@@ -12,10 +12,12 @@
     "test:harness": "tsx tests/harness.ts",
     "test:webhook": "tsx scripts/test-webhook.ts",
     "test:engine": "tsx scripts/test-engine.ts",
+    "test:multi-day": "tsx scripts/test-multi-day-course.ts",
     "db:seed": "tsx scripts/seed-supabase.ts",
     "cms:sync": "tsx scripts/sync-sheets.ts",
     "cms:sync:dry-run": "tsx scripts/dry-run-sync-validation.ts",
-    "cms:sync:config-dry-run": "tsx scripts/dry-run-config-validation.ts"
+    "cms:sync:config-dry-run": "tsx scripts/dry-run-config-validation.ts",
+    "ingest": "tsx scripts/ingest-spots.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.1",

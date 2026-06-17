@@ -8,6 +8,7 @@ import {
   FIXED_BASE_CAMP,
   FIXED_OPERATION_TIME_LABEL,
   isWebAppFormValid,
+  TRIP_DURATION_OPTIONS,
   type WebAppFormState,
 } from "@/lib/webapp/build-trip-request";
 import { maintainFeedbackStorage } from "@/lib/webapp/feedback-storage";
@@ -229,6 +230,27 @@ export default function WebAppForm() {
               <p className="webapp-hint mt-1 text-xs">{locationStatus}</p>
             ) : null}
           </div>
+
+          <label className="block">
+            <span className="webapp-label text-xs">여행 기간</span>
+            <select
+              className="webapp-input mt-1 w-full"
+              value={form.trip_days}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  trip_days: Number(event.target.value) as WebAppFormState["trip_days"],
+                }))
+              }
+              onBlur={handleFieldBlur}
+            >
+              {TRIP_DURATION_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
 
           <label className="block">
             <span className="webapp-label text-xs">오늘의 날씨</span>

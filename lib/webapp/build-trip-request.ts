@@ -1,11 +1,18 @@
 import type { TripLocation, TripRequest } from "@/lib/engine/types";
+import type { TripDurationDays } from "@/lib/engine/course-generator";
+import { TRIP_DURATION_OPTIONS } from "@/lib/engine/course-generator";
+
+export { TRIP_DURATION_OPTIONS };
+export type { TripDurationDays };
 
 export const FIXED_OPERATION_TIME_LABEL = "출발 ~ 귀환 (총 5시간)";
 export const FIXED_BASE_CAMP = "인천 연수구 랜드마크로 20 호반써밋 송도";
 export const FIXED_DESTINATION = "인천_근교";
 export const FIXED_DURATION_HOURS = 5;
+export const DEFAULT_TRIP_DAYS: TripDurationDays = 1;
 
 export const DEFAULT_WEBAPP_FORM: WebAppFormState = {
+  trip_days: DEFAULT_TRIP_DAYS,
   weather: "23도~31도, 폭염, 자외선 매우 높음",
   mood_intensity: 90,
   sunset_time: "19:56",
@@ -14,6 +21,7 @@ export const DEFAULT_WEBAPP_FORM: WebAppFormState = {
 };
 
 export type WebAppFormState = {
+  trip_days: TripDurationDays;
   weather: string;
   mood_intensity: number;
   sunset_time: string;
@@ -38,6 +46,7 @@ export function buildTripRequest(state: WebAppFormState): TripRequest {
   const request: TripRequest = {
     start_mode: "duration",
     duration_hours: FIXED_DURATION_HOURS,
+    trip_days: state.trip_days,
     origin: FIXED_BASE_CAMP,
     return_location: FIXED_BASE_CAMP,
     mood_tags: [],

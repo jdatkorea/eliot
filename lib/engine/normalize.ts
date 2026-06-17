@@ -80,8 +80,14 @@ export function normalize(req: TripRequest): NormalizedTrip {
         )
       : req.mood_tags;
 
+  const trip_days =
+    req.trip_days !== undefined && req.trip_days >= 1
+      ? Math.min(3, Math.max(1, Math.round(req.trip_days)))
+      : 1;
+
   return {
     duration,
+    trip_days,
     origin,
     mood_tags,
     mood_intensity,

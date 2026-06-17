@@ -14,6 +14,11 @@ export function isTripRequest(value: unknown): value is TripRequest {
     if (!Number.isFinite(h) || (h as number) <= 0) return false;
   }
 
+  if (req.trip_days !== undefined) {
+    const d = req.trip_days;
+    if (!Number.isFinite(d) || (d as number) < 1 || (d as number) > 3) return false;
+  }
+
   return true;
 }
 
