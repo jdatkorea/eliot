@@ -5,6 +5,10 @@ import { buildBriefingLinks } from "@/lib/webhook/briefing-urls";
 import { parseWebhookBody } from "@/lib/webhook/parse-telegram";
 import {
   buildTripRequest,
+  DEFAULT_WEBAPP_FORM,
+  FIXED_BASE_CAMP,
+  FIXED_DURATION_HOURS,
+  isWebAppFormValid,
   type WebAppFormState,
 } from "@/lib/webapp/build-trip-request";
 
@@ -19,83 +23,79 @@ function wrapTelegramUpdate(tripRequest: TripRequest, chatId = 987654321) {
   };
 }
 
-const durationFormState: WebAppFormState = {
-  start_mode: "duration",
-  departure_time: "09:00",
-  return_time: "14:00",
-  duration_hours: 5,
-  origin: "인천 송도",
-  return_location: "인천 송도",
-  mood_tags: ["relaxed_pace", "food_light"],
-  mood_intensity: 3,
-  mode: "family",
-};
-
-const fixedFormState: WebAppFormState = {
-  start_mode: "fixed",
-  departure_time: "10:30",
-  return_time: "18:00",
-  duration_hours: 5,
-  origin: "인천 송도",
-  return_location: "김포공항",
-  mood_tags: ["baby_tired"],
-  mood_intensity: 3,
-  mode: "couple",
-};
+const defaultFormState: WebAppFormState = { ...DEFAULT_WEBAPP_FORM };
 
 describe("buildTripRequest (WebApp payload)", () => {
-  it("duration 모드: duration_hours만 포함하고 시각 필드는 제외", () => {
-    const payload = buildTripRequest(durationFormState);
+  it("기본값으로 고정 조건 + 가변 필드를 TripRequest에 매핑", () => {
+    const payload = buildTripRequest(defaultFormState);
 
     expect(payload).toEqual({
       start_mode: "duration",
-      duration_hours: 5,
-      origin: "인천 송도",
-      return_location: "인천 송도",
-      mood_tags: ["relaxed_pace", "food_light"],
-      mood_intensity: 3,
+      duration_hours: FIXED_DURATION_HOURS,
+      origin: FIXED_BASE_CAMP,
+      return_location: FIXED_BASE_CAMP,
+      mood_tags: [],
+      mood_intensity: 90,
       mode: "family",
+      weather: DEFAULT_WEBAPP_FORM.weather,
+      sunset_time: DEFAULT_WEBAPP_FORM.sunset_time,
+      constraints: DEFAULT_WEBAPP_FORM.constraints,
     });
     expect(payload).not.toHaveProperty("departure_time");
     expect(payload).not.toHaveProperty("return_time");
   });
 
-  it("fixed 모드: 출발·도착 시각만 포함하고 duration_hours는 제외", () => {
-    const payload = buildTripRequest(fixedFormState);
-
-    expect(payload).toEqual({
-      start_mode: "fixed",
-      departure_time: "10:30",
-      return_time: "18:00",
-      origin: "인천 송도",
-      return_location: "김포공항",
-      mood_tags: ["baby_tired"],
-      mood_intensity: 3,
-      mode: "couple",
+  it("가변 필드 trim 후 페이로드에 반영", () => {
+    const payload = buildTripRequest({
+      weather: "  맑음  ",
+      mood_intensity: 50,
+      sunset_time: " 20:30 ",
+      constraints: " 직선 동선 ",
     });
-    expect(payload).not.toHaveProperty("duration_hours");
+
+    expect(payload.weather).toBe("맑음");
+    expect(payload.mood_intensity).toBe(50);
+    expect(payload.sunset_time).toBe("20:30");
+    expect(payload.constraints).toBe("직선 동선");
+  });
+});
+
+describe("isWebAppFormValid", () => {
+  it("기본값은 유효", () => {
+    expect(isWebAppFormValid(defaultFormState)).toBe(true);
+  });
+
+  it("필수 가변 필드가 비어 있으면 무효", () => {
+    expect(
+      isWebAppFormValid({ ...defaultFormState, weather: "   " }),
+    ).toBe(false);
+    expect(
+      isWebAppFormValid({ ...defaultFormState, constraints: "" }),
+    ).toBe(false);
+  });
+
+  it("에너지 활성화도는 0~100 범위", () => {
+    expect(
+      isWebAppFormValid({ ...defaultFormState, mood_intensity: -1 }),
+    ).toBe(false);
+    expect(
+      isWebAppFormValid({ ...defaultFormState, mood_intensity: 101 }),
+    ).toBe(false);
   });
 });
 
 describe("parseWebhookBody (Telegram web_app_data)", () => {
-  it("WebApp duration 페이로드를 TripRequest로 파싱", () => {
-    const tripRequest = buildTripRequest(durationFormState);
+  it("WebApp 페이로드를 TripRequest로 파싱", () => {
+    const tripRequest = buildTripRequest(defaultFormState);
     const result = parseWebhookBody(wrapTelegramUpdate(tripRequest));
 
     expect(result.tripRequest).toEqual(tripRequest);
     expect(result.chatId).toBe(987654321);
-  });
-
-  it("WebApp fixed 페이로드를 TripRequest로 파싱", () => {
-    const tripRequest = buildTripRequest(fixedFormState);
-    const result = parseWebhookBody(wrapTelegramUpdate(tripRequest));
-
-    expect(result.tripRequest).toEqual(tripRequest);
-    expect(normalize(result.tripRequest).duration).toBe(7.5);
+    expect(normalize(result.tripRequest).duration).toBe(FIXED_DURATION_HOURS);
   });
 
   it("WebApp 페이로드로 브리핑 URL 2개 생성 가능", () => {
-    const tripRequest = buildTripRequest(durationFormState);
+    const tripRequest = buildTripRequest(defaultFormState);
     const { tripRequest: parsed } = parseWebhookBody(
       wrapTelegramUpdate(tripRequest),
     );
@@ -126,5 +126,32 @@ describe("parseWebhookBody (Telegram web_app_data)", () => {
         } as unknown as TripRequest),
       ),
     ).toThrow("유효한 TripRequest");
+  });
+});
+
+describe("WebApp 모바일 레이아웃 불변식", () => {
+  it("고정·가변 필드 수가 명세와 일치 (고정 2 + 가변 4)", () => {
+    const fixedKeys = ["operation_time", "base_camp"] as const;
+    const dynamicKeys = Object.keys(DEFAULT_WEBAPP_FORM);
+
+    expect(fixedKeys).toHaveLength(2);
+    expect(dynamicKeys).toHaveLength(4);
+    expect(dynamicKeys).toEqual([
+      "weather",
+      "mood_intensity",
+      "sunset_time",
+      "constraints",
+    ]);
+  });
+
+  it("페이로드에 weather·sunset·constraints가 포함되어 백엔드로 전달 가능", () => {
+    const payload = buildTripRequest(defaultFormState);
+
+    expect(payload).toMatchObject({
+      weather: expect.any(String),
+      sunset_time: expect.any(String),
+      constraints: expect.any(String),
+      mood_intensity: expect.any(Number),
+    });
   });
 });

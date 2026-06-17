@@ -1,53 +1,46 @@
-import { HOME_ADDRESS } from "@/lib/engine/normalize";
 import type { TripRequest } from "@/lib/engine/types";
 
-type WebAppFormFields = {
-  departure_time: string;
-  return_time: string;
-  duration_hours: number;
-  origin: string;
-  return_location: string;
+export const FIXED_OPERATION_TIME_LABEL = "출발 ~ 귀환 (총 5시간)";
+export const FIXED_BASE_CAMP = "인천 연수구 랜드마크로 20 호반써밋 송도";
+export const FIXED_DURATION_HOURS = 5;
+
+export const DEFAULT_WEBAPP_FORM: WebAppFormState = {
+  weather: "23도~31도, 폭염, 자외선 매우 높음",
+  mood_intensity: 90,
+  sunset_time: "19:56",
+  constraints:
+    "18:00 이후 퇴근길 교통체증 회피를 위한 선형(Linear) 동선 유지 (와리가리 금지).",
 };
 
-export type WebAppFormState = WebAppFormFields &
-  Pick<TripRequest, "start_mode" | "mood_tags" | "mood_intensity" | "mode">;
+export type WebAppFormState = {
+  weather: string;
+  mood_intensity: number;
+  sunset_time: string;
+  constraints: string;
+};
 
 export function isWebAppFormValid(state: WebAppFormState): boolean {
-  if (state.mode !== "family" && state.mode !== "couple") {
-    return false;
-  }
-
-  if (state.start_mode === "fixed") {
-    return Boolean(state.departure_time && state.return_time);
-  }
-
-  return Number.isFinite(state.duration_hours) && state.duration_hours > 0;
+  return (
+    state.weather.trim().length > 0 &&
+    Number.isFinite(state.mood_intensity) &&
+    state.mood_intensity >= 0 &&
+    state.mood_intensity <= 100 &&
+    state.sunset_time.trim().length > 0 &&
+    state.constraints.trim().length > 0
+  );
 }
 
 export function buildTripRequest(state: WebAppFormState): TripRequest {
-  const origin = state.origin.trim() || HOME_ADDRESS;
-  const returnLocation = state.return_location.trim() || origin;
-
-  const shared = {
-    mood_tags: state.mood_tags,
-    mood_intensity: state.mood_intensity,
-    mode: state.mode,
-    origin,
-    return_location: returnLocation,
-  };
-
-  if (state.start_mode === "fixed") {
-    return {
-      ...shared,
-      start_mode: "fixed",
-      departure_time: state.departure_time,
-      return_time: state.return_time,
-    };
-  }
-
   return {
-    ...shared,
     start_mode: "duration",
-    duration_hours: state.duration_hours,
+    duration_hours: FIXED_DURATION_HOURS,
+    origin: FIXED_BASE_CAMP,
+    return_location: FIXED_BASE_CAMP,
+    mood_tags: [],
+    mood_intensity: state.mood_intensity,
+    mode: "family",
+    weather: state.weather.trim(),
+    sunset_time: state.sunset_time.trim(),
+    constraints: state.constraints.trim(),
   };
 }

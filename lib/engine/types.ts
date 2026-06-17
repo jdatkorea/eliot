@@ -81,20 +81,11 @@ export type Place = {
   destination: string;
   name: string;
   category: PlaceCategory;
-  lat: number;
-  lng: number;
-  curtail_count: number;
   is_outdoor: boolean;
   no_kids_zone: boolean;
-  break_time: string | null;
-  naver_url: string;
-  backup_place_id: string | null;
-  last_verified: string;
-  notes: string | null;
   tags: string[];
   stroller_friendly?: boolean;
   has_nursing_room?: boolean;
-  last_social_seen?: string | null;
 };
 
 export type FailureReason =
@@ -138,6 +129,9 @@ export type TripRequest = {
   mood_tags: string[];
   mood_intensity?: number;
   mode: "family" | "couple";
+  weather?: string;
+  sunset_time?: string;
+  constraints?: string;
 };
 
 export type NormalizedTrip = {

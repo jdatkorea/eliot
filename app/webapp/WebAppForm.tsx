@@ -1,47 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { MOOD_TAGS } from "@/lib/config/mood-tags.config";
-import { HOME_ADDRESS } from "@/lib/engine/normalize";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { applyTelegramTheme } from "@/lib/webapp/apply-telegram-theme";
 import {
   buildTripRequest,
+  DEFAULT_WEBAPP_FORM,
+  FIXED_BASE_CAMP,
+  FIXED_OPERATION_TIME_LABEL,
   isWebAppFormValid,
   type WebAppFormState,
 } from "@/lib/webapp/build-trip-request";
-import { MOOD_TAG_LABELS } from "@/lib/webapp/mood-tag-labels";
 import { submitTripRequest } from "@/lib/webapp/submit-trip-request";
 
 type TelegramWebApp = typeof import("@twa-dev/sdk").default;
 
-const MOOD_INTENSITY_PRESETS = [
-  { label: "매우 피곤함", value: 10 },
-  { label: "보통", value: 50 },
-  { label: "활기참", value: 90 },
-] as const;
-
-const DEFAULT_FORM: WebAppFormState = {
-  start_mode: "duration",
-  departure_time: "09:00",
-  return_time: "14:00",
-  duration_hours: 5,
-  origin: HOME_ADDRESS,
-  return_location: HOME_ADDRESS,
-  mood_tags: [],
-  mood_intensity: 50,
-  mode: "family",
-};
-
-function toggleMoodTag(tags: string[], tag: string): string[] {
-  return tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag];
-}
-
 export default function WebAppForm() {
   const [webApp, setWebApp] = useState<TelegramWebApp | null>(null);
-  const [form, setForm] = useState<WebAppFormState>(DEFAULT_FORM);
+  const [form, setForm] = useState<WebAppFormState>(DEFAULT_WEBAPP_FORM);
   const [isTelegram, setIsTelegram] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const constraintsRef = useRef<HTMLTextAreaElement>(null);
 
   const formValid = isWebAppFormValid(form);
 
@@ -59,7 +38,6 @@ export default function WebAppForm() {
       const inTelegram = Boolean(WebApp.initData);
       setWebApp(WebApp);
       setIsTelegram(inTelegram);
-
     });
 
     return () => {
@@ -67,8 +45,17 @@ export default function WebAppForm() {
     };
   }, []);
 
+  const scrollConstraintsIntoView = useCallback(() => {
+    webApp?.expand();
+    requestAnimationFrame(() => {
+      constraintsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+  }, [webApp]);
+
   const handleSubmit = useCallback(async () => {
-    console.log("Submit 시작: 버튼 클릭됨");
     if (!formValid || submitted || isSubmitting) return;
 
     const tripRequest = buildTripRequest(form);
@@ -98,7 +85,7 @@ export default function WebAppForm() {
     if (!webApp || !isTelegram) return;
 
     webApp.MainButton.show();
-    webApp.MainButton.setText(isSubmitting ? "전송 중..." : "브리핑 생성");
+    webApp.MainButton.setText(isSubmitting ? "전송 중..." : "여정 생성");
 
     if (isSubmitting) {
       webApp.MainButton.disable();
@@ -117,131 +104,63 @@ export default function WebAppForm() {
 
   return (
     <div className="webapp-root min-h-screen px-4 pb-28 pt-4">
-      <header className="mb-6 space-y-1">
+      <header className="mb-5 space-y-1">
         <h1 className="webapp-title text-xl font-semibold">여정 브리핑</h1>
         <p className="webapp-subtitle text-sm">
-          오늘 일정에 맞게 입력하면 A/B 두 가지 코스를 보내드려요.
+          오늘 조건을 확인하고 여정을 생성하면 A/B 두 가지 코스를 보내드려요.
         </p>
       </header>
 
       <form
-        className="space-y-6"
+        className="space-y-4"
         onSubmit={(event) => {
           event.preventDefault();
           handleSubmit();
         }}
       >
-        <section className="webapp-section space-y-3">
-          <h2 className="webapp-section-title text-sm font-semibold">시작 모드</h2>
-          <div className="flex gap-2">
-            <ModeToggle
-              active={form.start_mode === "fixed"}
-              label="고정 시각"
-              onClick={() => setForm((prev) => ({ ...prev, start_mode: "fixed" }))}
-            />
-            <ModeToggle
-              active={form.start_mode === "duration"}
-              label="가용 시간"
-              onClick={() =>
-                setForm((prev) => ({ ...prev, start_mode: "duration" }))
-              }
-            />
-          </div>
-        </section>
-
-        {form.start_mode === "fixed" ? (
-          <section className="webapp-section space-y-3">
-            <h2 className="webapp-section-title text-sm font-semibold">출발 · 도착</h2>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="space-y-1">
-                <span className="webapp-label text-xs">출발 시각</span>
-                <input
-                  type="time"
-                  className="webapp-input w-full"
-                  value={form.departure_time}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      departure_time: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label className="space-y-1">
-                <span className="webapp-label text-xs">도착 시각</span>
-                <input
-                  type="time"
-                  className="webapp-input w-full"
-                  value={form.return_time}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      return_time: event.target.value,
-                    }))
-                  }
-                />
-              </label>
+        <section className="webapp-card space-y-3">
+          <h2 className="webapp-section-title text-xs font-semibold uppercase tracking-wide">
+            고정 조건
+          </h2>
+          <dl className="space-y-3">
+            <div className="webapp-readonly-row">
+              <dt className="webapp-label text-xs">작전 시간</dt>
+              <dd className="webapp-readonly-value text-sm font-medium">
+                {FIXED_OPERATION_TIME_LABEL}
+              </dd>
             </div>
-          </section>
-        ) : (
-          <section className="webapp-section space-y-3">
-            <h2 className="webapp-section-title text-sm font-semibold">총 가용 시간</h2>
-            <label className="space-y-1">
-              <span className="webapp-label text-xs">시간 (시간 단위)</span>
-              <input
-                type="number"
-                min={1}
-                max={24}
-                step={0.5}
-                className="webapp-input w-full"
-                value={form.duration_hours}
-                onChange={(event) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    duration_hours: Number(event.target.value),
-                  }))
-                }
-              />
-            </label>
-          </section>
-        )}
-
-        <section className="webapp-section space-y-3">
-          <h2 className="webapp-section-title text-sm font-semibold">장소</h2>
-          <label className="block space-y-1">
-            <span className="webapp-label text-xs">출발 장소</span>
-            <input
-              type="text"
-              className="webapp-input w-full"
-              placeholder={HOME_ADDRESS}
-              value={form.origin}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, origin: event.target.value }))
-              }
-            />
-          </label>
-          <label className="block space-y-1">
-            <span className="webapp-label text-xs">복귀 장소</span>
-            <input
-              type="text"
-              className="webapp-input w-full"
-              placeholder={HOME_ADDRESS}
-              value={form.return_location}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  return_location: event.target.value,
-                }))
-              }
-            />
-          </label>
+            <div className="webapp-readonly-row">
+              <dt className="webapp-label text-xs">베이스캠프</dt>
+              <dd className="webapp-readonly-value text-sm font-medium">
+                {FIXED_BASE_CAMP}
+                <span className="webapp-hint mt-1 block text-xs font-normal">
+                  출발/도착지 고정
+                </span>
+              </dd>
+            </div>
+          </dl>
         </section>
 
-        <section className="webapp-section space-y-3">
-          <h2 className="webapp-section-title text-sm font-semibold">기분 · 취향</h2>
+        <section className="webapp-card space-y-4">
+          <h2 className="webapp-section-title text-xs font-semibold uppercase tracking-wide">
+            오늘의 변수
+          </h2>
+
+          <label className="block space-y-1.5">
+            <span className="webapp-label text-xs">오늘의 날씨</span>
+            <input
+              type="text"
+              className="webapp-input w-full"
+              value={form.weather}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, weather: event.target.value }))
+              }
+            />
+          </label>
+
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="webapp-label text-xs">기분 강도</span>
+              <span className="webapp-label text-xs">에너지 활성화도</span>
               <span className="webapp-intensity-value text-sm font-semibold">
                 {form.mood_intensity}%
               </span>
@@ -260,71 +179,42 @@ export default function WebAppForm() {
                 }))
               }
             />
-            <div className="flex flex-wrap gap-2">
-              {MOOD_INTENSITY_PRESETS.map((preset) => (
-                <button
-                  key={preset.value}
-                  type="button"
-                  className={`webapp-chip ${
-                    form.mood_intensity === preset.value ? "webapp-chip-active" : ""
-                  }`}
-                  onClick={() =>
-                    setForm((prev) => ({
-                      ...prev,
-                      mood_intensity: preset.value,
-                    }))
-                  }
-                >
-                  {preset.label} ({preset.value}%)
-                </button>
-              ))}
-            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {MOOD_TAGS.map((tag) => {
-              const selected = form.mood_tags.includes(tag);
-              return (
-                <button
-                  key={tag}
-                  type="button"
-                  className={`webapp-chip ${selected ? "webapp-chip-active" : ""}`}
-                  onClick={() =>
-                    setForm((prev) => ({
-                      ...prev,
-                      mood_tags: toggleMoodTag(prev.mood_tags, tag),
-                    }))
-                  }
-                >
-                  {MOOD_TAG_LABELS[tag]}
-                </button>
-              );
-            })}
-          </div>
-        </section>
 
-        <section className="webapp-section space-y-3">
-          <h2 className="webapp-section-title text-sm font-semibold">동행 모드</h2>
-          <div className="flex gap-2">
-            <ModeToggle
-              active={form.mode === "family"}
-              label="패밀리"
-              onClick={() => setForm((prev) => ({ ...prev, mode: "family" }))}
+          <label className="block space-y-1.5">
+            <span className="webapp-label text-xs">일몰 시간</span>
+            <input
+              type="time"
+              className="webapp-input w-full"
+              value={form.sunset_time}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, sunset_time: event.target.value }))
+              }
             />
-            <ModeToggle
-              active={form.mode === "couple"}
-              label="연인"
-              onClick={() => setForm((prev) => ({ ...prev, mode: "couple" }))}
+          </label>
+
+          <label className="block space-y-1.5">
+            <span className="webapp-label text-xs">제약 조건</span>
+            <textarea
+              ref={constraintsRef}
+              rows={4}
+              className="webapp-input webapp-textarea w-full resize-none"
+              value={form.constraints}
+              onFocus={scrollConstraintsIntoView}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, constraints: event.target.value }))
+              }
             />
-          </div>
+          </label>
         </section>
 
         {!isTelegram ? (
           <button
             type="submit"
             className="webapp-submit w-full"
-            disabled={!formValid || submitted}
+            disabled={!formValid || submitted || isSubmitting}
           >
-            {submitted ? "전송됨 (콘솔 확인)" : "브리핑 생성"}
+            {submitted ? "전송됨 (콘솔 확인)" : "여정 생성"}
           </button>
         ) : null}
 
@@ -364,10 +254,22 @@ export default function WebAppForm() {
           color: var(--tg-section-header-text-color);
         }
 
-        .webapp-section {
+        .webapp-card {
           background: var(--tg-section-bg-color);
-          border-radius: 12px;
-          padding: 14px;
+          border-radius: 14px;
+          padding: 16px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        }
+
+        .webapp-readonly-row {
+          border-radius: 10px;
+          background: var(--tg-secondary-bg-color);
+          padding: 12px;
+        }
+
+        .webapp-readonly-value {
+          color: var(--tg-text-color);
+          margin-top: 4px;
         }
 
         .webapp-input {
@@ -379,25 +281,14 @@ export default function WebAppForm() {
           font-size: 15px;
         }
 
+        .webapp-textarea {
+          line-height: 1.45;
+          min-height: 96px;
+        }
+
         .webapp-input:focus {
           outline: 2px solid var(--tg-link-color);
           outline-offset: 0;
-        }
-
-        .webapp-chip {
-          border-radius: 999px;
-          padding: 8px 14px;
-          font-size: 13px;
-          font-weight: 500;
-          background: var(--tg-secondary-bg-color);
-          color: var(--tg-text-color);
-          border: 1px solid transparent;
-          transition: background 0.15s ease, color 0.15s ease;
-        }
-
-        .webapp-chip-active {
-          background: var(--tg-button-color);
-          color: var(--tg-button-text-color);
         }
 
         .webapp-intensity-value {
@@ -407,22 +298,6 @@ export default function WebAppForm() {
         .webapp-slider {
           accent-color: var(--tg-button-color);
           height: 4px;
-        }
-
-        .webapp-mode-toggle {
-          flex: 1;
-          border-radius: 10px;
-          padding: 10px 12px;
-          font-size: 14px;
-          font-weight: 600;
-          background: var(--tg-secondary-bg-color);
-          color: var(--tg-text-color);
-          border: 1px solid transparent;
-        }
-
-        .webapp-mode-toggle-active {
-          background: var(--tg-button-color);
-          color: var(--tg-button-text-color);
         }
 
         .webapp-submit {
@@ -439,25 +314,5 @@ export default function WebAppForm() {
         }
       `}</style>
     </div>
-  );
-}
-
-function ModeToggle({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={`webapp-mode-toggle ${active ? "webapp-mode-toggle-active" : ""}`}
-      onClick={onClick}
-    >
-      {label}
-    </button>
   );
 }
