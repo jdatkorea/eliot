@@ -1,7 +1,8 @@
-import type { TripRequest } from "@/lib/engine/types";
+import type { TripLocation, TripRequest } from "@/lib/engine/types";
 
 export const FIXED_OPERATION_TIME_LABEL = "출발 ~ 귀환 (총 5시간)";
 export const FIXED_BASE_CAMP = "인천 연수구 랜드마크로 20 호반써밋 송도";
+export const FIXED_DESTINATION = "인천_근교";
 export const FIXED_DURATION_HOURS = 5;
 
 export const DEFAULT_WEBAPP_FORM: WebAppFormState = {
@@ -17,6 +18,9 @@ export type WebAppFormState = {
   mood_intensity: number;
   sunset_time: string;
   constraints: string;
+  trip_date?: string;
+  location?: TripLocation;
+  destination?: string;
 };
 
 export function isWebAppFormValid(state: WebAppFormState): boolean {
@@ -31,7 +35,7 @@ export function isWebAppFormValid(state: WebAppFormState): boolean {
 }
 
 export function buildTripRequest(state: WebAppFormState): TripRequest {
-  return {
+  const request: TripRequest = {
     start_mode: "duration",
     duration_hours: FIXED_DURATION_HOURS,
     origin: FIXED_BASE_CAMP,
@@ -43,4 +47,18 @@ export function buildTripRequest(state: WebAppFormState): TripRequest {
     sunset_time: state.sunset_time.trim(),
     constraints: state.constraints.trim(),
   };
+
+  if (state.trip_date?.trim()) {
+    request.trip_date = state.trip_date.trim();
+  }
+
+  if (state.location) {
+    request.location = state.location;
+  }
+
+  if (state.destination?.trim()) {
+    request.destination = state.destination.trim();
+  }
+
+  return request;
 }
