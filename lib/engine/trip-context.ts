@@ -74,9 +74,10 @@ export async function resolvePriorFeedback(): Promise<
 
 export function feedbackEventsFromFeedbackLog(
   entries: PriorTripFeedback[],
+  baseTimestamp: string,
 ): FeedbackEvent[] {
   return entries.flatMap((entry, index) => {
-    const events = feedbackEventsFromPriorTrip(entry);
+    const events = feedbackEventsFromPriorTrip(entry, baseTimestamp);
     return events.map((event) => ({
       ...event,
       id: `cloud-prior-feedback-${index}`,
@@ -87,6 +88,7 @@ export function feedbackEventsFromFeedbackLog(
 
 export function feedbackEventsFromPriorTrip(
   prior: PriorTripFeedback | undefined,
+  baseTimestamp: string,
 ): FeedbackEvent[] {
   if (!prior?.place_category) return [];
 
@@ -105,7 +107,7 @@ export function feedbackEventsFromPriorTrip(
       satisfaction: prior.satisfaction ?? 3,
       failure_reason: prior.failure_reason ?? "none",
       note: null,
-      created_at: prior.saved_at ?? new Date().toISOString(),
+      created_at: prior.saved_at ?? baseTimestamp,
     },
   ];
 }
@@ -147,6 +149,7 @@ export type GenerateBriefingOptionsResult = Pick<
 export function buildGenerateBriefingOptions(
   tripRequest: TripRequest,
   dateLabel: string,
+  baseTimestamp: string,
 ): GenerateBriefingOptionsResult {
   const context = resolveTripBriefingContext(tripRequest);
   const homeRegion = resolveHomeRegionFromTripRequest(tripRequest);
@@ -165,7 +168,7 @@ export function buildGenerateBriefingOptions(
   );
 
   const priorFeedbackEvents = tripRequest.prior_trip_feedback
-    ? feedbackEventsFromPriorTrip(tripRequest.prior_trip_feedback)
+    ? feedbackEventsFromPriorTrip(tripRequest.prior_trip_feedback, baseTimestamp)
     : [];
 
   return {

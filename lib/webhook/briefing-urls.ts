@@ -147,8 +147,13 @@ export function buildBriefingLinks(
   const moodTagsB = deriveVariantB(moodTagsA);
   const { places, feedback_events, config } = data;
 
+  const baseTimestamp = new Date().toISOString();
   const dateLabel = resolveDateLabel(tripRequest);
-  const briefingOptions = buildGenerateBriefingOptions(tripRequest, dateLabel);
+  const briefingOptions = buildGenerateBriefingOptions(
+    tripRequest,
+    dateLabel,
+    baseTimestamp,
+  );
   const { feedback_events: cloudFeedbackEvents, ...generateOptions } =
     briefingOptions;
   const mergedFeedback = mergeFeedbackEvents(

@@ -173,6 +173,8 @@ describe("buildTripRequest — location 페이로드", () => {
   });
 });
 
+const BASE_TIMESTAMP = "2024-06-17T12:00:00.000Z";
+
 describe("trip-context — CloudStorage 피드백 결합", () => {
   const prior: PriorTripFeedback = {
     mood_intensity: 40,
@@ -187,6 +189,7 @@ describe("trip-context — CloudStorage 피드백 결합", () => {
     const base = buildGenerateBriefingOptions(
       buildTripRequest(DEFAULT_WEBAPP_FORM),
       "2024년 6월 17일(수)",
+      BASE_TIMESTAMP,
     );
 
     const merged = mergePriorFeedbackIntoContext(base.trip_context!, prior);
@@ -197,11 +200,24 @@ describe("trip-context — CloudStorage 피드백 결합", () => {
   });
 
   it("prior 피드백을 feedback_events로 변환", () => {
-    const events = feedbackEventsFromPriorTrip(prior);
+    const events = feedbackEventsFromPriorTrip(prior, BASE_TIMESTAMP);
 
     expect(events).toHaveLength(1);
     expect(events[0].context_tags.place_category).toBe("meal");
     expect(events[0].failure_reason).toBe("food");
+    expect(events[0].created_at).toBe(prior.saved_at);
+  });
+
+  it("saved_at 없을 때 baseTimestamp를 created_at으로 사용", () => {
+    const events = feedbackEventsFromPriorTrip(
+      {
+        place_category: "cafe",
+        satisfaction: 3,
+      },
+      BASE_TIMESTAMP,
+    );
+
+    expect(events[0]?.created_at).toBe(BASE_TIMESTAMP);
   });
 
   it("location 기반 homeRegion 해석", () => {
@@ -222,6 +238,7 @@ describe("trip-context — CloudStorage 피드백 결합", () => {
         trip_date: "2024-06-17",
       }),
       formatKstDateLabelFromIso("2024-06-17"),
+      BASE_TIMESTAMP,
     );
 
     expect(options.date_label).toBe("2024년 6월 17일(월)");

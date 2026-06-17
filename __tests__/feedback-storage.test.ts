@@ -214,10 +214,13 @@ describe("trip-context — resolvePriorFeedback", () => {
   });
 
   it("feedbackEventsFromFeedbackLog가 가중치 루틴용 이벤트 배열 생성", () => {
-    const events = feedbackEventsFromFeedbackLog([
-      { place_category: "meal", satisfaction: 2, failure_reason: "food" },
-      { place_category: "cafe", satisfaction: 4 },
-    ]);
+    const events = feedbackEventsFromFeedbackLog(
+      [
+        { place_category: "meal", satisfaction: 2, failure_reason: "food" },
+        { place_category: "cafe", satisfaction: 4 },
+      ],
+      "2024-06-17T12:00:00.000Z",
+    );
 
     expect(events).toHaveLength(2);
     expect(events[0].context_tags.place_category).toBe("meal");

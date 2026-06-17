@@ -1,4 +1,5 @@
 import { canonicalizeDestination } from "./course-generator";
+import { buildSwapSeed, deterministicIndex } from "./deterministic-index";
 import type { Place, PlaceCategory } from "./types";
 
 export type SwapSpotParams = {
@@ -8,6 +9,8 @@ export type SwapSpotParams = {
   destination: string;
   mode: "family" | "couple";
   moodTags?: string[];
+  tripId: string;
+  attemptIndex: number;
 };
 
 export type SwapSpotResult = {
@@ -32,7 +35,7 @@ function findPlaceById(places: Place[], id: string): Place | undefined {
 function sameCategoryCandidates(
   places: Place[],
   category: PlaceCategory,
-  params: Omit<SwapSpotParams, "blockIndex" | "coursePlaceIds"> & {
+  params: Omit<SwapSpotParams, "blockIndex" | "coursePlaceIds" | "tripId" | "attemptIndex"> & {
     excludeIds: Set<string>;
     currentPlaceId: string;
   },
@@ -49,7 +52,8 @@ function sameCategoryCandidates(
 }
 
 export function swapSpotAtIndex(params: SwapSpotParams): SwapSpotResult {
-  const { coursePlaceIds, blockIndex, places, destination, mode } = params;
+  const { coursePlaceIds, blockIndex, places, destination, mode, tripId, attemptIndex } =
+    params;
 
   if (blockIndex < 0 || blockIndex >= coursePlaceIds.length) {
     throw new Error(`blockIndex ${blockIndex}가 코스 범위를 벗어났습니다.`);
@@ -75,8 +79,12 @@ export function swapSpotAtIndex(params: SwapSpotParams): SwapSpotResult {
     return { coursePlaceIds: [...coursePlaceIds], previousPlaceId, swappedPlace: null };
   }
 
+  const sortedCandidates = [...candidates].sort((left, right) =>
+    left.id.localeCompare(right.id),
+  );
+  const seed = buildSwapSeed(tripId, attemptIndex);
   const swappedPlace =
-    candidates[Math.floor(Math.random() * candidates.length)] ?? null;
+    sortedCandidates[deterministicIndex(seed, sortedCandidates.length)] ?? null;
   if (!swappedPlace) {
     return { coursePlaceIds: [...coursePlaceIds], previousPlaceId, swappedPlace: null };
   }

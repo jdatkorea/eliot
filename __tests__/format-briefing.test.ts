@@ -38,11 +38,14 @@ describe("parseWeatherFromText", () => {
   });
 });
 
+const BASE_TIMESTAMP = "2026-06-17T12:00:00.000Z";
+
 describe("buildGenerateBriefingOptions", () => {
   it("TripRequest 7필드 컨텍스트를 generateBriefing 입력으로 패킹", () => {
     const options = buildGenerateBriefingOptions(
       webAppTripRequest,
       "2026년 6월 17일(수)",
+      BASE_TIMESTAMP,
     );
 
     expect(options.date_label).toBe("2026년 6월 17일(수)");
@@ -63,6 +66,7 @@ describe("formatBriefingFamilyTime", () => {
     const options = buildGenerateBriefingOptions(
       webAppTripRequest,
       "2026년 6월 17일(수)",
+      BASE_TIMESTAMP,
     );
     const { feedback_events: cloudFeedbackEvents, ...generateOptions } =
       options;
@@ -94,6 +98,7 @@ describe("formatBriefingFamilyTime", () => {
     const options = buildGenerateBriefingOptions(
       webAppTripRequest,
       "2026년 6월 17일(수)",
+      BASE_TIMESTAMP,
     );
     const { feedback_events: cloudFeedbackEvents, ...generateOptions } =
       options;
@@ -119,6 +124,7 @@ describe("formatBriefingFamilyTime", () => {
     const options = buildGenerateBriefingOptions(
       webAppTripRequest,
       "2026년 6월 17일(수)",
+      BASE_TIMESTAMP,
     );
     const { feedback_events: cloudFeedbackEvents, ...generateOptions } =
       options;

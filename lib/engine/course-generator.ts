@@ -1,4 +1,5 @@
 import { resolveMoodEffects } from "./apply-config";
+import { deterministicIndex } from "./deterministic-index";
 import type {
   AppConfig,
   FeedbackEvent,
@@ -101,15 +102,6 @@ function clampTripDuration(value: number): TripDurationDays {
   if (value <= 1) return 1;
   if (value >= 3) return 3;
   return value as TripDurationDays;
-}
-
-function deterministicIndex(seed: string, max: number): number {
-  if (max <= 0) return 0;
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = (hash * 31 + seed.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash) % max;
 }
 
 export function halfDayLabels(

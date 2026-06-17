@@ -17,16 +17,38 @@ export type BriefingData = {
   source: BriefingDataSource;
 };
 
+type AppConfigRow = { key: string; value: unknown };
+
+type BriefingMetadataRpc = {
+  feedback_events: FeedbackEvent[];
+  app_config: AppConfigRow[];
+};
+
+function parseBriefingMetadata(value: unknown): BriefingMetadataRpc {
+  if (!value || typeof value !== "object") {
+    return { feedback_events: [], app_config: [] };
+  }
+
+  const record = value as Record<string, unknown>;
+  return {
+    feedback_events: Array.isArray(record.feedback_events)
+      ? (record.feedback_events as FeedbackEvent[])
+      : [],
+    app_config: Array.isArray(record.app_config)
+      ? (record.app_config as AppConfigRow[])
+      : [],
+  };
+}
+
 async function fetchFromSupabase(): Promise<BriefingData> {
   const supabase = createServerSupabaseClient();
   if (!supabase) {
     throw new Error("Supabase 환경변수가 설정되지 않았습니다.");
   }
 
-  const [placesResult, feedbackResult, configResult] = await Promise.all([
+  const [placesResult, metadataResult] = await Promise.all([
     supabase.from("places").select("*"),
-    supabase.from("feedback_events").select("*"),
-    supabase.from("app_config").select("key, value"),
+    supabase.rpc("get_briefing_metadata"),
   ]);
 
   if (placesResult.error) {
@@ -37,14 +59,12 @@ async function fetchFromSupabase(): Promise<BriefingData> {
       "anon SELECT 0행 — RLS 정책 누락 또는 places 비어 있음",
     );
   }
-  if (feedbackResult.error) {
-    throw feedbackResult.error;
-  }
-  if (configResult.error) {
-    throw configResult.error;
+  if (metadataResult.error) {
+    throw metadataResult.error;
   }
 
-  const configRows = configResult.data ?? [];
+  const metadata = parseBriefingMetadata(metadataResult.data);
+  const configRows = metadata.app_config;
   const config = safeAppConfigFromDbRows(configRows);
 
   if (configRows.length === 0) {
@@ -56,7 +76,7 @@ async function fetchFromSupabase(): Promise<BriefingData> {
 
   return {
     places: (placesResult.data ?? []) as Place[],
-    feedback_events: (feedbackResult.data ?? []) as FeedbackEvent[],
+    feedback_events: metadata.feedback_events,
     config,
     source: "supabase",
   };

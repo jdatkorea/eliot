@@ -11,6 +11,10 @@ import {
 } from "@/lib/engine/format-briefing";
 import type { Block, Briefing } from "@/lib/engine/types";
 import {
+  parseFeedbackLinkParams,
+  V0_TRIP_ID,
+} from "@/lib/feedback/context";
+import {
   readCourseState,
   writeCourseState,
   type StoredCourseState,
@@ -148,9 +152,21 @@ function actionButtonStateClass(selected: boolean): string {
     : "border-slate-200 bg-slate-50 text-slate-700";
 }
 
+function resolveTripIdFromFeedbackUrl(feedbackUrl?: string): string {
+  if (!feedbackUrl?.trim()) return V0_TRIP_ID;
+  try {
+    const params = new URL(feedbackUrl).searchParams;
+    return parseFeedbackLinkParams(params).trip_id ?? V0_TRIP_ID;
+  } catch {
+    return V0_TRIP_ID;
+  }
+}
+
 function buildStoredCourseState(
   briefing: Briefing,
   variant: "A" | "B",
+  feedbackUrl?: string,
+  existing?: StoredCourseState | null,
 ): StoredCourseState {
   return {
     briefing,
@@ -158,6 +174,8 @@ function buildStoredCourseState(
     destination: briefing.destination,
     mode: briefing.context_meta?.prior_trip_feedback?.mode ?? "family",
     mood_tags: briefing.context_meta?.prior_trip_feedback?.mood_tags ?? [],
+    trip_id: existing?.trip_id ?? resolveTripIdFromFeedbackUrl(feedbackUrl),
+    swap_attempt_index: existing?.swap_attempt_index ?? 0,
     saved_at: new Date().toISOString(),
   };
 }
@@ -201,11 +219,16 @@ export default function BriefingPage() {
       setSwapMessage(null);
 
       try {
-        const stored =
-          (await readCourseState()) ??
-          (selectedBriefing
-            ? buildStoredCourseState(selectedBriefing, variant)
-            : null);
+        let stored = await readCourseState();
+        if (!stored && selectedBriefing) {
+          stored = buildStoredCourseState(
+            selectedBriefing,
+            variant,
+            readyView?.feedbackUrl,
+          );
+        } else if (stored && selectedBriefing) {
+          stored = { ...stored, briefing: selectedBriefing };
+        }
 
         if (!stored) {
           setSwapMessage("코스 상태를 불러오지 못했습니다.");
@@ -258,7 +281,7 @@ export default function BriefingPage() {
         setSwapTarget(null);
       }
     },
-    [selectedBriefing, variant],
+    [readyView?.feedbackUrl, selectedBriefing, variant],
   );
 
   if (view.status === "loading") {

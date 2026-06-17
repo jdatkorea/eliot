@@ -13,12 +13,12 @@ type TelegramWebApp = {
   showAlert: (message: string) => void;
 };
 
-function resolveDateLabel(tripRequest: TripRequest): string {
+function resolveDateLabel(tripRequest: TripRequest, baseTimestamp: string): string {
   if (tripRequest.trip_date?.trim()) {
     return formatKstDateLabelFromIso(tripRequest.trip_date.trim());
   }
 
-  const now = new Date();
+  const now = new Date(baseTimestamp);
   const f = new Intl.DateTimeFormat("ko-KR", {
     timeZone: "Asia/Seoul",
     year: "numeric",
@@ -45,8 +45,13 @@ async function enrichTripRequestWithCloudFeedback(
     ...(priorFeedback ? { prior_trip_feedback: priorFeedback } : {}),
   };
 
-  const dateLabel = resolveDateLabel(enriched);
-  const options = buildGenerateBriefingOptions(enriched, dateLabel);
+  const baseTimestamp = new Date().toISOString();
+  const dateLabel = resolveDateLabel(enriched, baseTimestamp);
+  const options = buildGenerateBriefingOptions(
+    enriched,
+    dateLabel,
+    baseTimestamp,
+  );
 
   if (options.trip_context) {
     enriched.prior_trip_feedback = options.trip_context.prior_trip_feedback;

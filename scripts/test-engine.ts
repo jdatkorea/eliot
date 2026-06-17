@@ -162,10 +162,9 @@ async function fetchBriefingDataStrict(): Promise<{
     );
   }
 
-  const [placesResult, feedbackResult, configResult] = await Promise.all([
+  const [placesResult, metadataResult] = await Promise.all([
     supabase.from("places").select("*"),
-    supabase.from("feedback_events").select("*"),
-    supabase.from("app_config").select("key, value"),
+    supabase.rpc("get_briefing_metadata"),
   ]);
 
   if (placesResult.error) {
@@ -174,14 +173,17 @@ async function fetchBriefingDataStrict(): Promise<{
   if ((placesResult.data ?? []).length === 0) {
     throw new Error("places 0행 — 시딩 또는 RLS 정책을 확인하세요.");
   }
-  if (feedbackResult.error) {
-    throw new Error(`feedback_events SELECT 실패: ${feedbackResult.error.message}`);
-  }
-  if (configResult.error) {
-    throw new Error(`app_config SELECT 실패: ${configResult.error.message}`);
+  if (metadataResult.error) {
+    throw new Error(
+      `get_briefing_metadata RPC 실패: ${metadataResult.error.message}`,
+    );
   }
 
-  const configRows = configResult.data ?? [];
+  const metadata = metadataResult.data as {
+    feedback_events?: unknown[];
+    app_config?: { key: string; value: unknown }[];
+  };
+  const configRows = metadata?.app_config ?? [];
   const appConfig = safeAppConfigFromDbRows(configRows);
 
   return {
@@ -189,7 +191,7 @@ async function fetchBriefingDataStrict(): Promise<{
       places: (placesResult.data ?? []).map((row) =>
         normalizePlaceRow(row as Record<string, unknown>),
       ),
-      feedback_events: feedbackResult.data ?? [],
+      feedback_events: (metadata?.feedback_events ?? []) as BriefingData["feedback_events"],
       config: appConfig,
       source: "supabase",
     },
