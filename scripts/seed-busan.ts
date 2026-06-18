@@ -114,7 +114,7 @@ function parseCsvSync<T extends Record<string, string>>(
     const values = parseLine(line);
     const row = {} as T;
     for (let j = 0; j < headers.length; j++) {
-      row[headers[j] as keyof T] = values[j] ?? "" as T[keyof T];
+      row[headers[j] as keyof T] = (values[j] ?? "") as T[keyof T];
     }
     rows.push(row);
   }

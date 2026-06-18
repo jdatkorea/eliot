@@ -11,6 +11,8 @@ export type {
   AppConfig,
   AppConfigTemplates,
   MoodTagEffects,
+  WeatherCondition,
+  WeatherExclusionRule,
   WeatherKey,
 } from "@/lib/engine/types";
 
@@ -50,6 +52,18 @@ const moodTagEffectsPartialSchema = z.object({
   mealSubtag: z.enum(["light", "hearty"]).nullable().optional(),
 });
 
+const weatherConditionSchema = z.enum(["heatwave", "coldwave", "uv_high"]);
+
+const weatherExclusionRuleSchema = z.object({
+  when: z.object({
+    weather_condition: weatherConditionSchema,
+    is_outdoor: z.boolean(),
+  }),
+  then: z.object({
+    exclude: z.literal(true),
+  }),
+});
+
 export const AppConfigSchema = z.object({
   mood_tags: z.array(z.string()).min(1),
   mood_tag_effects: z.record(moodTagEffectsPartialSchema),
@@ -61,8 +75,22 @@ export const AppConfigSchema = z.object({
     ),
   }),
   rain_prob_threshold: z.number(),
+  weather_exclusion_rules: z.array(weatherExclusionRuleSchema),
+  phase_durations: z.record(z.number().positive()),
+  default_departure_time: z.string().regex(/^\d{1,2}:\d{2}$/),
+  stroller_friendly_bonus: z.number(),
 });
 
+/**
+ * weather_exclusion_rules(T3)·phase_durations·default_departure_time(T4)·
+ * stroller_friendly_bonus(T5)는 의도적으로 REQUIRED에서 제외한다.
+ * weather_exclusion_rules는 이제 live DB에 시딩되어 있지만(2026-06-18),
+ * 향후 다른 환경/리셋된 DB가 이 키들을 아직 갖고 있지 않을 가능성은 항상
+ * 존재한다 — REQUIRED로 만들면 그 키 하나 없다는 이유로
+ * safeAppConfigFromDbRows 전체가 DEFAULT_APP_CONFIG로 폴백해 DB의 다른
+ * 커스터마이즈(mood_tags 등)까지 묻혀버린다. assembleAppConfigFromRows의
+ * 스프레드 기본값 병합으로 충분하다.
+ */
 export const REQUIRED_CONFIG_KEYS = [
   "mood_tags",
   "mood_tag_effects",
@@ -234,6 +262,49 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
     desc_by_category: DESC_BY_CATEGORY,
   },
   rain_prob_threshold: 50,
+  /**
+   * heatwave/coldwave 모두 outdoor 하드-제외 — 가족 day-trip 제품(아기 동반
+   * 전제: stroller_friendly·has_nursing_room 필드가 이미 존재)에서 한파 야외
+   * 노출은 폭염과 동등하거나 그 이상의 안전 리스크(저체온증)다(2026-06-18
+   * 결정, 겨울 여정 대비). 자외선(uv_high)은 의류·자외선차단제로 완화 가능한
+   * 낮은 급성 위험이라 하드-제외 대상에서 제외 — conditions 배열에는 여전히
+   * 노출되어 추후 필요 시 추가하기 쉽다.
+   */
+  weather_exclusion_rules: [
+    {
+      when: { weather_condition: "heatwave", is_outdoor: true },
+      then: { exclude: true },
+    },
+    {
+      when: { weather_condition: "coldwave", is_outdoor: true },
+      then: { exclude: true },
+    },
+  ],
+  /**
+   * 절대 분이 아니라 상대 가중치(T4, 2026-06-18) — resolvePhaseClockWindows가
+   * 전체 작전시간에 비례 배분한다. 오후를 가장 길게 잡은 건 보통 메인
+   * 활동(activity/view/kids)이 거기 배치되기 때문 — 출발/밤은 짧게.
+   */
+  phase_durations: {
+    출발: 1,
+    "도착 후": 1,
+    오전: 1.5,
+    점심: 1.5,
+    오후: 2,
+    저녁: 1.5,
+    밤: 1,
+  },
+  /**
+   * 실제 WebApp 플로우는 항상 start_mode:"duration"이라 명시적 departure_time이
+   * 없다(TripRequest.departure_time은 "fixed" 모드 전용, 현재 미사용 경로) —
+   * clock-time 배분에 필요한 앵커를 config 기본값으로 제공한다.
+   */
+  default_departure_time: "10:00",
+  /**
+   * weightedScore 가산점(T5, 2026-06-18) — indoorBias 기본값(2~3)과 비슷한
+   * 스케일. family 모드에서만 적용(couple엔 무의미한 필드).
+   */
+  stroller_friendly_bonus: 2,
 };
 
 export type AppConfigRow = {

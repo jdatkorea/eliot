@@ -1,0 +1,307 @@
+[
+  {
+    "destination_id": "송도",
+    "tier": "ICN_METRO",
+    "distance_km_from_base": 0
+  },
+  {
+    "destination_id": "인천",
+    "tier": "ICN_METRO",
+    "distance_km_from_base": 8.6
+  },
+  {
+    "destination_id": "시흥",
+    "tier": "ICN_METRO",
+    "distance_km_from_base": 13.1
+  },
+  {
+    "destination_id": "부천",
+    "tier": "ICN_METRO",
+    "distance_km_from_base": 16
+  },
+  {
+    "destination_id": "청라",
+    "tier": "ICN_METRO",
+    "distance_km_from_base": 16.5
+  },
+  {
+    "destination_id": "안산",
+    "tier": "ICN_METRO",
+    "distance_km_from_base": 17.2
+  },
+  {
+    "destination_id": "계양",
+    "tier": "ICN_METRO",
+    "distance_km_from_base": 18
+  },
+  {
+    "destination_id": "영종도",
+    "tier": "ICN_METRO",
+    "distance_km_from_base": 20.6
+  },
+  {
+    "destination_id": "광명",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 21
+  },
+  {
+    "destination_id": "구로",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 23.6
+  },
+  {
+    "destination_id": "김포",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 25.7
+  },
+  {
+    "destination_id": "화성",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 26.2
+  },
+  {
+    "destination_id": "안양",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 26.6
+  },
+  {
+    "destination_id": "관악",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 27.9
+  },
+  {
+    "destination_id": "의왕",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 28.1
+  },
+  {
+    "destination_id": "인덕원",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 28.3
+  },
+  {
+    "destination_id": "과천",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 29.6
+  },
+  {
+    "destination_id": "일산",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 31.6
+  },
+  {
+    "destination_id": "고양",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 33.7
+  },
+  {
+    "destination_id": "서울",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 34.6
+  },
+  {
+    "destination_id": "서초",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 34.9
+  },
+  {
+    "destination_id": "수원",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 35.8
+  },
+  {
+    "destination_id": "성남",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 41.7
+  },
+  {
+    "destination_id": "구리",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 47.6
+  },
+  {
+    "destination_id": "용인",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 49
+  },
+  {
+    "destination_id": "의정부",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 51.1
+  },
+  {
+    "destination_id": "하남",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 52.1
+  },
+  {
+    "destination_id": "광주",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 53.1
+  },
+  {
+    "destination_id": "양주",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 55.8
+  },
+  {
+    "destination_id": "평택",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 59.9
+  },
+  {
+    "destination_id": "이천",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 70.1
+  },
+  {
+    "destination_id": "포천",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 73.9
+  },
+  {
+    "destination_id": "양평",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 74.3
+  },
+  {
+    "destination_id": "천안",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 75.7
+  },
+  {
+    "destination_id": "여주",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 87.4
+  },
+  {
+    "destination_id": "가평",
+    "tier": "CAPITAL_EXT",
+    "distance_km_from_base": 89.8
+  },
+  {
+    "destination_id": "춘천",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 109.3
+  },
+  {
+    "destination_id": "원주",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 111.9
+  },
+  {
+    "destination_id": "보령",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 117.5
+  },
+  {
+    "destination_id": "횡성",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 117.9
+  },
+  {
+    "destination_id": "충주",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 120.9
+  },
+  {
+    "destination_id": "대전",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 132.5
+  },
+  {
+    "destination_id": "평창",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 153.3
+  },
+  {
+    "destination_id": "정선",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 177.2
+  },
+  {
+    "destination_id": "전북",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 179.5
+  },
+  {
+    "destination_id": "양양",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 188.7
+  },
+  {
+    "destination_id": "속초",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 192.9
+  },
+  {
+    "destination_id": "안동",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 205.6
+  },
+  {
+    "destination_id": "구미",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 206.3
+  },
+  {
+    "destination_id": "의성",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 215.1
+  },
+  {
+    "destination_id": "남원",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 229
+  },
+  {
+    "destination_id": "대구",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 242.1
+  },
+  {
+    "destination_id": "영덕",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 264.2
+  },
+  {
+    "destination_id": "의령",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 271.2
+  },
+  {
+    "destination_id": "포항",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 283.9
+  },
+  {
+    "destination_id": "경주",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 285.7
+  },
+  {
+    "destination_id": "여수",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 306
+  },
+  {
+    "destination_id": "김해",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 312.7
+  },
+  {
+    "destination_id": "울산",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 314.2
+  },
+  {
+    "destination_id": "부산",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 327.7
+  },
+  {
+    "destination_id": "제주",
+    "tier": "EXCLUDED",
+    "distance_km_from_base": 432.7
+  }
+]

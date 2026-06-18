@@ -25,6 +25,7 @@ import {
   resolveKnownDestinationIds,
 } from "./lib/destination-gate";
 import { writeDestinationsJson } from "./build-destinations-json";
+import { writeRegionTiersJson } from "./build-region-tiers";
 
 config({ path: resolve(process.cwd(), ".env.local"), quiet: true });
 config({ path: resolve(process.cwd(), ".env"), quiet: true });
@@ -301,6 +302,9 @@ async function main() {
 
   const destinationsJsonPath = await writeDestinationsJson();
   console.log(`[Ingest] ${destinationsJsonPath} 재생성 완료.`);
+
+  const regionTiersJsonPath = await writeRegionTiersJson();
+  console.log(`[Ingest] ${regionTiersJsonPath} 재생성 완료.`);
 
   console.log(
     `[Ingest] Supabase 동기화 완료 (${accepted.length}건 적재, ` +

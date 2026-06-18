@@ -54,7 +54,7 @@ function runRemoteSql(sql: string): void {
   execSync(`npx supabase db query --linked -f "${tmpFile}"`, {
     cwd: PROJECT_ROOT,
     stdio: "inherit",
-    shell: true,
+    shell: true as any,
   });
 }
 
