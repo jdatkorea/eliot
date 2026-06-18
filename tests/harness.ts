@@ -93,7 +93,7 @@ async function runJokerFallbackCase(): Promise<void> {
 
   await runRelayCase(caseName, fallbackTripRequest, briefingData);
 
-  const { briefingA, briefingB } = buildBriefingLinks(
+  const { briefingA, briefingB } = await buildBriefingLinks(
     fallbackTripRequest,
     HARNESS_BASE_URL,
     briefingData,

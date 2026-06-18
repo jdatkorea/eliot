@@ -64,7 +64,9 @@ function installTelegramWebAppMock(options?: {
   location?: { latitude: number; longitude: number } | null;
 }) {
   const cloudStorage = options?.cloudStorage ?? createCloudStorageMock();
-  const locationResult = options?.location ?? SONGDO_CENTER;
+  const locationResult =
+    options?.location ??
+    { latitude: SONGDO_CENTER.lat, longitude: SONGDO_CENTER.lng };
 
   const locationManager = {
     isInited: false,

@@ -157,21 +157,101 @@ describe("generateBriefing — destination region gate", () => {
     }
   });
 
-  it("extend_range: home_region 필터 해제 — 타 지역 장소 포함 가능", () => {
+  /**
+   * T2(2026-06-18): home(인천_근교) 단독으로 오후 phase(activity/view/kids)를
+   * 채울 수 없는 의도적 결손 데이터 — spillover가 실제로 필요한 상황을
+   * 만들어야 extend_range의 CAPITAL_EXT-cap 동작을 의미 있게 검증할 수 있다.
+   * 경주(EXCLUDED)에도 동일 결손 카테고리를 미끼로 심어, variant A/B 모두
+   * 경주로는 절대 새지 않는지 함께 확인한다.
+   */
+  const REGION_GATE_PLACES: Place[] = [
+    {
+      id: "rg-cafe-1",
+      destination: HOME_REGION,
+      name: "테스트 카페",
+      category: "cafe",
+      is_outdoor: false,
+      no_kids_zone: false,
+      tags: [],
+    },
+    {
+      id: "rg-meal-1",
+      destination: HOME_REGION,
+      name: "테스트 식당1",
+      category: "meal",
+      is_outdoor: false,
+      no_kids_zone: false,
+      tags: [],
+    },
+    {
+      id: "rg-meal-2",
+      destination: HOME_REGION,
+      name: "테스트 식당2",
+      category: "meal",
+      is_outdoor: false,
+      no_kids_zone: false,
+      tags: [],
+    },
+    // 인천_근교에는 오후(activity/view/kids)가 전무 — spillover 필요 상황
+    {
+      id: "rg-excluded-activity",
+      destination: REMOTE_REGION,
+      name: "경주 액티비티 (미끼)",
+      category: "activity",
+      is_outdoor: true,
+      no_kids_zone: false,
+      tags: [],
+    },
+    {
+      id: "rg-capital-activity",
+      destination: "서울",
+      name: "서울 액티비티 (정상 spillover 대상)",
+      category: "activity",
+      is_outdoor: true,
+      no_kids_zone: false,
+      tags: [],
+    },
+  ];
+
+  it("variant A(extend_range 없음): 오후 결손이어도 ICN_METRO 밖(경주·서울)으로 새지 않음 — Joker로 귀결", () => {
     const briefing = generateBriefing(
       briefingInput({
         destination: HOME_REGION,
+        places: REGION_GATE_PLACES,
+        normalized: { mood_tags: [] },
+      }),
+    );
+
+    const selectedDestinations = new Set(
+      allBlocks(briefing).map((block) => {
+        const place = REGION_GATE_PLACES.find((p) => p.id === block.place_id);
+        return place?.destination;
+      }),
+    );
+
+    expect(selectedDestinations.has(REMOTE_REGION)).toBe(false);
+    expect(selectedDestinations.has("서울")).toBe(false);
+    expect(briefing.pool_exhausted).toBe(true);
+  });
+
+  it("variant B(extend_range): CAPITAL_EXT(서울)로는 spillover 가능, EXCLUDED(경주)는 절대 불가", () => {
+    const briefing = generateBriefing(
+      briefingInput({
+        destination: HOME_REGION,
+        places: REGION_GATE_PLACES,
         normalized: { mood_tags: ["extend_range"] },
       }),
     );
 
     const selectedDestinations = new Set(
       allBlocks(briefing).map((block) => {
-        const place = places.find((p) => p.id === block.place_id)!;
-        return place.destination;
+        const place = REGION_GATE_PLACES.find((p) => p.id === block.place_id);
+        return place?.destination;
       }),
     );
-    expect(selectedDestinations.has(REMOTE_REGION)).toBe(true);
+
+    expect(selectedDestinations.has(REMOTE_REGION)).toBe(false);
+    expect(selectedDestinations.has("서울")).toBe(true);
   });
 });
 

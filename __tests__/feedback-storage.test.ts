@@ -1,8 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  feedbackEventsFromFeedbackLog,
-  resolvePriorFeedback,
-} from "@/lib/engine/trip-context";
+import { feedbackEventsFromFeedbackLog } from "@/lib/engine/trip-context";
 import type { PriorTripFeedback } from "@/lib/engine/types";
 import {
   clearFeedbackStorage,
@@ -11,6 +8,7 @@ import {
   getFeedback,
   maintainFeedbackStorage,
   parseFeedbackLog,
+  resolvePriorFeedback,
   saveFeedback,
 } from "@/lib/webapp/feedback-storage";
 import { CLOUD_STORAGE_LAST_TRIP_KEY } from "@/lib/webapp/telegram-native";
@@ -184,7 +182,7 @@ describe("feedback-storage — maintainFeedbackStorage", () => {
   });
 });
 
-describe("trip-context — resolvePriorFeedback", () => {
+describe("feedback-storage — resolvePriorFeedback", () => {
   afterEach(() => {
     Reflect.deleteProperty(globalThis, "window");
   });

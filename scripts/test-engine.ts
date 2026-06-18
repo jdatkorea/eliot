@@ -318,7 +318,7 @@ async function runScenario(
 
   const dbPlaceIds = new Set(allPlaces.map((p) => p.id));
 
-  const { briefingA, briefingB, labelA, labelB } = buildBriefingLinks(
+  const { briefingA, briefingB, labelA, labelB } = await buildBriefingLinks(
     tripRequest,
     "http://localhost:3000",
     data,

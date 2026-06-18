@@ -76,4 +76,37 @@ describe("safeAppConfigFromDbRows — 런타임 fail-over", () => {
     expect(isAppConfig(DEFAULT_APP_CONFIG)).toBe(true);
     expect(isAppConfig({})).toBe(false);
   });
+
+  it("[regression] weather_exclusion_rules DB row(실 시딩 형태)가 그대로 파싱된다 — 2026-06-18 시딩", () => {
+    const config = safeAppConfigFromDbRows([
+      { key: "mood_tags", value: DEFAULT_APP_CONFIG.mood_tags },
+      { key: "mood_tag_effects", value: DEFAULT_APP_CONFIG.mood_tag_effects },
+      { key: "templates", value: DEFAULT_APP_CONFIG.templates },
+      { key: "rain_prob_threshold", value: DEFAULT_APP_CONFIG.rain_prob_threshold },
+      {
+        key: "weather_exclusion_rules",
+        value: [
+          { when: { weather_condition: "heatwave", is_outdoor: true }, then: { exclude: true } },
+          { when: { weather_condition: "coldwave", is_outdoor: true }, then: { exclude: true } },
+        ],
+      },
+    ]);
+
+    expect(config.weather_exclusion_rules).toEqual([
+      { when: { weather_condition: "heatwave", is_outdoor: true }, then: { exclude: true } },
+      { when: { weather_condition: "coldwave", is_outdoor: true }, then: { exclude: true } },
+    ]);
+  });
+
+  it("weather_exclusion_rules 키가 DB에 없으면(구버전 4키 상태) DEFAULT 규칙으로 안전 병합 — 하드-제외가 조용히 사라지지 않음", () => {
+    const config = safeAppConfigFromDbRows([
+      { key: "mood_tags", value: DEFAULT_APP_CONFIG.mood_tags },
+      { key: "mood_tag_effects", value: DEFAULT_APP_CONFIG.mood_tag_effects },
+      { key: "templates", value: DEFAULT_APP_CONFIG.templates },
+      { key: "rain_prob_threshold", value: DEFAULT_APP_CONFIG.rain_prob_threshold },
+    ]);
+
+    expect(config.weather_exclusion_rules).toEqual(DEFAULT_APP_CONFIG.weather_exclusion_rules);
+    expect(config.weather_exclusion_rules.length).toBeGreaterThan(0);
+  });
 });

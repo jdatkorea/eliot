@@ -137,6 +137,23 @@ describe("generateBriefing — 결정론적 순수함수", () => {
       expect(place.destination).toBe(FIXED_DESTINATION);
     }
   });
+
+  it("[T4] 각 블록에 start_time/end_time이 부착되고 하루 안에서 단조 증가한다", () => {
+    const briefing = generateBriefing(input);
+    const clockPattern = /^\d{2}:\d{2}$/;
+
+    for (const day of briefing.days) {
+      let previousEnd: string | undefined;
+      for (const block of day.blocks) {
+        expect(block.start_time).toMatch(clockPattern);
+        expect(block.end_time).toMatch(clockPattern);
+        if (previousEnd) {
+          expect(block.start_time).toBe(previousEnd);
+        }
+        previousEnd = block.end_time;
+      }
+    }
+  });
 });
 
 describe("mode 필터", () => {
@@ -229,7 +246,7 @@ describe("deriveVariantB / variantLabel", () => {
 });
 
 describe("buildChecklist — 규칙 기반 준비물", () => {
-  it("family 모드: 필수 준비물 포함, place.notes 미포함", () => {
+  it("family 모드 + 당일·근거리(baseInput 기본값): 필수 준비물 포함, 여행 키워드 0건", () => {
     const briefing = generateBriefing({
       ...baseInput,
       normalized: { ...baseNormalized, mode: "family" },
@@ -238,12 +255,15 @@ describe("buildChecklist — 규칙 기반 준비물", () => {
     const checklistBody = briefing.checklist.slice(1);
     expect(checklistBody).toContain("기저귀·물티슈");
     expect(checklistBody).toContain("아이 간식");
-    expect(checklistBody).toContain("여권·신분증");
     expect(checklistBody).toContain("보조배터리");
+    // T5(2026-06-18): 당일·근거리는 여권/항공/KTX 등 여행 키워드 하드 제외
+    expect(briefing.checklist.join(" ")).not.toContain("여권");
+    expect(briefing.checklist.join(" ")).not.toContain("항공");
+    expect(briefing.checklist.join(" ")).not.toContain("KTX");
     expect(briefing.checklist.join(" ")).not.toContain("유모차");
   });
 
-  it("couple 모드: family 전용 준비물 제외", () => {
+  it("couple 모드 + 당일·근거리: family 전용 준비물 제외, 여행 키워드도 제외", () => {
     const briefing = generateBriefing({
       ...baseInput,
       normalized: { ...baseNormalized, mode: "couple" },
@@ -252,8 +272,39 @@ describe("buildChecklist — 규칙 기반 준비물", () => {
     const checklistBody = briefing.checklist.slice(1);
     expect(checklistBody).not.toContain("기저귀·물티슈");
     expect(checklistBody).not.toContain("아이 간식");
-    expect(checklistBody).toContain("여권·신분증");
     expect(checklistBody).toContain("보조배터리");
+    expect(briefing.checklist.join(" ")).not.toContain("여권");
+  });
+
+  it("[regression] 당일·근거리 checklist에 여권·항공 부재 — T5 핵심 회귀", () => {
+    const briefing = generateBriefing({
+      ...baseInput,
+      destination: FIXED_DESTINATION,
+      normalized: { ...baseNormalized, mode: "family", trip_days: 1 },
+    });
+
+    const fullText = briefing.checklist.join(" ");
+    expect(fullText).not.toContain("여권");
+    expect(fullText).not.toContain("항공");
+    expect(fullText).not.toContain("KTX");
+  });
+
+  it("원거리(EXCLUDED tier destination) 또는 숙박 일정은 여권·항공 키워드를 유지한다", () => {
+    const farBriefing = generateBriefing({
+      ...baseInput,
+      destination: "경주",
+      normalized: { ...baseNormalized, mode: "family", trip_days: 1 },
+    });
+    expect(farBriefing.checklist.join(" ")).toContain("여권·신분증");
+    expect(farBriefing.checklist[0]).toBe("원거리 — 자차·KTX·항공");
+
+    const multiDayBriefing = generateBriefing({
+      ...baseInput,
+      destination: FIXED_DESTINATION,
+      normalized: { ...baseNormalized, mode: "family", trip_days: 2 },
+    });
+    expect(multiDayBriefing.checklist.join(" ")).toContain("여권·신분증");
+    expect(multiDayBriefing.checklist[0]).toBe("원거리 — 자차·KTX·항공");
   });
 
   it("강수 확률 임계값 이상: 우산·우비 포함", () => {
@@ -264,5 +315,58 @@ describe("buildChecklist — 규칙 기반 준비물", () => {
     });
 
     expect(briefing.checklist).toContain("우산·우비");
+  });
+});
+
+describe("[T5] has_nursing_room — Care Point 노출", () => {
+  const nursingPlace: Place = {
+    id: "p-nursing",
+    destination: FIXED_DESTINATION,
+    name: "수유실 보유 키즈카페",
+    category: "kids",
+    is_outdoor: false,
+    no_kids_zone: false,
+    tags: [],
+    has_nursing_room: true,
+  };
+  const placesWithNursing = [...places, nursingPlace];
+
+  it("[property] family 모드 → has_nursing_room=true 장소의 블록에 care_note 노출", () => {
+    const briefing = generateBriefing({
+      ...baseInput,
+      places: placesWithNursing,
+      normalized: { ...baseNormalized, mode: "family" },
+    });
+
+    const nursingBlock = allBlocks(briefing).find(
+      (block) => block.place_id === nursingPlace.id,
+    );
+    // 풀에 같은 카테고리 경쟁자가 많아 매 블록에서 뽑히지 않을 수 있으므로,
+    // 뽑혔을 때만(존재할 때만) care_note 정확성을 검증한다 — 선택 자체는
+    // course-generator의 deterministic 추첨 영역(T5 책임 밖).
+    if (nursingBlock) {
+      expect(nursingBlock.care_note).toBe("수유실 완비");
+    }
+
+    for (const block of allBlocks(briefing)) {
+      const place = placesWithNursing.find((p) => p.id === block.place_id);
+      if (place?.has_nursing_room === true) {
+        expect(block.care_note).toBe("수유실 완비");
+      } else {
+        expect(block.care_note).toBeUndefined();
+      }
+    }
+  });
+
+  it("couple 모드에서는 has_nursing_room이어도 care_note를 노출하지 않는다", () => {
+    const briefing = generateBriefing({
+      ...baseInput,
+      places: placesWithNursing,
+      normalized: { ...baseNormalized, mode: "couple" },
+    });
+
+    for (const block of allBlocks(briefing)) {
+      expect(block.care_note).toBeUndefined();
+    }
   });
 });

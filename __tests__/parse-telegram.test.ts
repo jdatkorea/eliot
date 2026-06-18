@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { normalize } from "@/lib/engine/normalize";
 import type { TripRequest } from "@/lib/engine/types";
+import * as serverModule from "@/lib/supabase/server";
 import { buildBriefingLinks } from "@/lib/webhook/briefing-urls";
 import { parseWebhookBody } from "@/lib/webhook/parse-telegram";
 import {
@@ -11,6 +12,13 @@ import {
   isWebAppFormValid,
   type WebAppFormState,
 } from "@/lib/webapp/build-trip-request";
+
+function mockBriefingInsert() {
+  const insert = vi.fn(() => Promise.resolve({ error: null }));
+  vi.spyOn(serverModule, "createServerSupabaseClient").mockReturnValue({
+    from: vi.fn(() => ({ insert })),
+  } as unknown as ReturnType<typeof serverModule.createServerSupabaseClient>);
+}
 
 function wrapTelegramUpdate(tripRequest: TripRequest, chatId = 987654321) {
   return {
@@ -87,6 +95,10 @@ describe("isWebAppFormValid", () => {
 });
 
 describe("parseWebhookBody (Telegram web_app_data)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("WebApp 페이로드를 TripRequest로 파싱", () => {
     const tripRequest = buildTripRequest(defaultFormState);
     const result = parseWebhookBody(wrapTelegramUpdate(tripRequest));
@@ -96,17 +108,16 @@ describe("parseWebhookBody (Telegram web_app_data)", () => {
     expect(normalize(result.tripRequest).duration).toBe(FIXED_DURATION_HOURS);
   });
 
-  it("WebApp 페이로드로 브리핑 URL 2개 생성 가능", () => {
+  it("WebApp 페이로드로 브리핑 URL 2개 생성 가능", async () => {
+    mockBriefingInsert();
     const tripRequest = buildTripRequest(defaultFormState);
     const { tripRequest: parsed } = parseWebhookBody(
       wrapTelegramUpdate(tripRequest),
     );
-    const links = buildBriefingLinks(parsed, "http://localhost:3000");
+    const links = await buildBriefingLinks(parsed, "http://localhost:3000");
 
-    expect(links.urlA).toMatch(/^http:\/\/localhost:3000\/briefing#data=/);
-    expect(links.urlB).toMatch(/^http:\/\/localhost:3000\/briefing#data=/);
-    expect(links.urlA).toContain("variant=A");
-    expect(links.urlB).toContain("variant=B");
+    expect(links.urlA).toMatch(/^http:\/\/localhost:3000\/briefing\/.+\?variant=A$/);
+    expect(links.urlB).toMatch(/^http:\/\/localhost:3000\/briefing\/.+\?variant=B$/);
     expect(links.briefingA.context_meta?.weather_text).toBe(
       DEFAULT_WEBAPP_FORM.weather,
     );
