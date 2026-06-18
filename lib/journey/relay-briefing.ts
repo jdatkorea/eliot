@@ -81,7 +81,7 @@ export async function relayTripBriefing(
     createFeedbackLinkParams(normalized, tripId),
   );
 
-  const { urlA, urlB, labelA, labelB, briefingA } = buildBriefingLinks(
+  const { urlA, urlB, labelA, labelB, briefingA } = await buildBriefingLinks(
     tripRequest,
     undefined,
     data,

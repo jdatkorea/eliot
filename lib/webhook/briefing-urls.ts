@@ -1,5 +1,5 @@
-import { compressToEncodedURIComponent } from "lz-string";
 import { getFixtureBriefingData } from "@/lib/fixtures/briefing-data";
+import { saveBriefingPayload } from "@/lib/supabase/briefing-store";
 import { generateBriefing } from "@/lib/engine/generate-briefing";
 import { buildGenerateBriefingOptions } from "@/lib/engine/trip-context";
 import { normalize } from "@/lib/engine/normalize";
@@ -128,20 +128,19 @@ export function resolveBriefingPayload(
 
 function buildBriefingUrl(
   baseUrl: string,
-  payload: BriefingLinkPayload,
+  id: string,
   variant: "A" | "B",
 ): string {
-  const compressed = compressToEncodedURIComponent(JSON.stringify(payload));
   const normalizedBase = baseUrl.replace(/\/$/, "");
-  return `${normalizedBase}/briefing#data=${compressed}&variant=${variant}`;
+  return `${normalizedBase}/briefing/${id}?variant=${variant}`;
 }
 
-export function buildBriefingLinks(
+export async function buildBriefingLinks(
   tripRequest: TripRequest,
   baseUrl = process.env.APP_BASE_URL ?? "http://localhost:3000",
   data: BriefingDataInput = getFixtureBriefingData(),
   feedbackUrl?: string,
-): BriefingLinksResult {
+): Promise<BriefingLinksResult> {
   const normalized = normalize(tripRequest);
   const moodTagsA = normalized.mood_tags;
   const moodTagsB = deriveVariantB(moodTagsA);
@@ -188,9 +187,11 @@ export function buildBriefingLinks(
     feedbackUrl,
   };
 
+  const id = await saveBriefingPayload(payload);
+
   return {
-    urlA: buildBriefingUrl(baseUrl, payload, "A"),
-    urlB: buildBriefingUrl(baseUrl, payload, "B"),
+    urlA: buildBriefingUrl(baseUrl, id, "A"),
+    urlB: buildBriefingUrl(baseUrl, id, "B"),
     labelA,
     labelB,
     briefingA,

@@ -1,7 +1,6 @@
 "use client";
 
-import { decompressFromEncodedURIComponent } from "lz-string";
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import DashboardView from "@/lib/admin/DashboardView";
 import { useIsAdmin } from "@/lib/admin/useIsAdmin";
 import {
@@ -19,95 +18,13 @@ import {
   writeCourseState,
   type StoredCourseState,
 } from "@/lib/webapp/course-state-storage";
-import {
-  resolveBriefingPayload,
-  type BriefingLinkPayload,
-  type ResolvedBriefingPayload,
-} from "@/lib/webhook/briefing-urls";
 
-type ViewState =
-  | { status: "loading" }
-  | { status: "error"; message: string }
-  | ({ status: "ready" } & ResolvedBriefingPayload);
-
-function subscribeToHash(onStoreChange: () => void) {
-  window.addEventListener("hashchange", onStoreChange);
-  return () => window.removeEventListener("hashchange", onStoreChange);
-}
-
-function getHashSnapshot() {
-  return window.location.hash;
-}
-
-function getServerHashSnapshot() {
-  return "";
-}
-
-function useLocationHash() {
-  return useSyncExternalStore(
-    subscribeToHash,
-    getHashSnapshot,
-    getServerHashSnapshot,
-  );
-}
-
-function parseHashParams(hash: string): { data: string | null; variant: "A" | "B" } {
-  const raw = hash.startsWith("#") ? hash.slice(1) : hash;
-  const params = new URLSearchParams(raw);
-  const variantParam = params.get("variant");
-  return {
-    data: params.get("data"),
-    variant: variantParam === "B" ? "B" : "A",
-  };
-}
-
-function decodeBriefingPayload(data: string): BriefingLinkPayload {
-  const json = decompressFromEncodedURIComponent(data);
-  if (!json) {
-    throw new Error("브리핑 데이터를 복원할 수 없습니다.");
-  }
-
-  const parsed = JSON.parse(json) as BriefingLinkPayload | Briefing;
-
-  if ("briefing" in parsed || "briefingA" in parsed) {
-    return parsed as BriefingLinkPayload;
-  }
-
-  return {
-    briefing: parsed as Briefing,
-    variantLabel: "",
-  };
-}
-
-function resolveViewFromHash(hash: string): ViewState {
-  if (!hash) {
-    return { status: "loading" };
-  }
-
-  try {
-    const { data, variant } = parseHashParams(hash);
-    if (!data) {
-      return {
-        status: "error",
-        message: "URL에 브리핑 데이터가 없습니다.",
-      };
-    }
-
-    const payload = decodeBriefingPayload(data);
-    return {
-      status: "ready",
-      ...resolveBriefingPayload(payload, variant),
-    };
-  } catch (error) {
-    return {
-      status: "error",
-      message:
-        error instanceof Error
-          ? error.message
-          : "브리핑을 불러오지 못했습니다.",
-    };
-  }
-}
+export type BriefingViewProps = {
+  briefing: Briefing;
+  variantLabel: string;
+  variant: "A" | "B";
+  feedbackUrl?: string;
+};
 
 function dotClassName(dot: Block["dot"]): string {
   switch (dot) {
@@ -118,23 +35,6 @@ function dotClassName(dot: Block["dot"]): string {
     default:
       return "bg-sky-500";
   }
-}
-
-function selectBriefing(
-  view: ResolvedBriefingPayload,
-  variant: "A" | "B",
-): { briefing: Briefing; variantLabel: string } {
-  if (view.dual) {
-    return {
-      briefing: variant === "B" ? view.dual.briefingB : view.dual.briefingA,
-      variantLabel: variant === "B" ? view.dual.labelB : view.dual.labelA,
-    };
-  }
-
-  return {
-    briefing: view.briefing,
-    variantLabel: view.variantLabel,
-  };
 }
 
 const actionButtonClass =
@@ -180,37 +80,23 @@ function buildStoredCourseState(
   };
 }
 
-export default function BriefingPage() {
-  const hash = useLocationHash();
-  const view = useMemo(() => resolveViewFromHash(hash), [hash]);
+export default function BriefingView({
+  briefing: initialBriefing,
+  variantLabel,
+  variant,
+  feedbackUrl,
+}: BriefingViewProps) {
   const isAdmin = useIsAdmin(COMMANDER_TELEGRAM_ID);
   const [showDashboard, setShowDashboard] = useState(false);
   const [activeBriefing, setActiveBriefing] = useState<Briefing | null>(null);
   const [swapTarget, setSwapTarget] = useState<string | null>(null);
   const [swapMessage, setSwapMessage] = useState<string | null>(null);
 
-  const readyView = view.status === "ready" ? view : null;
-  const variant = readyView?.variant ?? "A";
+  const briefing = activeBriefing ?? initialBriefing;
 
   useEffect(() => {
-    setActiveBriefing(null);
-    setSwapMessage(null);
-  }, [hash]);
-
-  const selectedBriefing = useMemo(() => {
-    if (!readyView) return null;
-    return selectBriefing(
-      activeBriefing
-        ? { ...readyView, briefing: activeBriefing }
-        : readyView,
-      variant,
-    ).briefing;
-  }, [activeBriefing, readyView, variant]);
-
-  useEffect(() => {
-    if (!selectedBriefing) return;
-    void writeCourseState(buildStoredCourseState(selectedBriefing, variant));
-  }, [selectedBriefing, variant]);
+    void writeCourseState(buildStoredCourseState(briefing, variant, feedbackUrl));
+  }, [briefing, variant, feedbackUrl]);
 
   const handleSwapSpot = useCallback(
     async (dayIndex: number, blockIndex: number) => {
@@ -220,19 +106,10 @@ export default function BriefingPage() {
 
       try {
         let stored = await readCourseState();
-        if (!stored && selectedBriefing) {
-          stored = buildStoredCourseState(
-            selectedBriefing,
-            variant,
-            readyView?.feedbackUrl,
-          );
-        } else if (stored && selectedBriefing) {
-          stored = { ...stored, briefing: selectedBriefing };
-        }
-
         if (!stored) {
-          setSwapMessage("코스 상태를 불러오지 못했습니다.");
-          return;
+          stored = buildStoredCourseState(briefing, variant, feedbackUrl);
+        } else {
+          stored = { ...stored, briefing };
         }
 
         const response = await fetch("/api/course/swap", {
@@ -281,41 +158,11 @@ export default function BriefingPage() {
         setSwapTarget(null);
       }
     },
-    [readyView?.feedbackUrl, selectedBriefing, variant],
+    [briefing, feedbackUrl, variant],
   );
 
-  if (view.status === "loading") {
-    return (
-      <div className="flex h-dvh items-center justify-center bg-slate-50 px-2">
-        <p className="text-xs leading-snug text-slate-500">브리핑을 불러오는 중…</p>
-      </div>
-    );
-  }
-
-  if (view.status === "error") {
-    return (
-      <div className="flex h-dvh items-center justify-center bg-slate-50 px-2">
-        <p className="text-xs leading-snug text-rose-600">{view.message}</p>
-      </div>
-    );
-  }
-
-  const { briefing, variantLabel } = useMemo(() => {
-    if (view.status !== "ready") {
-      return { briefing: null, variantLabel: "" };
-    }
-    return selectBriefing(
-      activeBriefing ? { ...view, briefing: activeBriefing } : view,
-      view.variant,
-    );
-  }, [activeBriefing, view]);
-
-  if (!briefing) {
-    return null;
-  }
-
-  const contextLines = getBriefingContextLines(briefing);
-  const showNav = Boolean(view.feedbackUrl);
+  const contextLines = useMemo(() => getBriefingContextLines(briefing), [briefing]);
+  const showNav = Boolean(feedbackUrl);
 
   return (
     <div className="flex h-dvh max-h-dvh flex-col overflow-hidden bg-slate-50 text-slate-900 leading-snug">
@@ -331,7 +178,7 @@ export default function BriefingPage() {
               </h1>
             </div>
             <span className="shrink-0 rounded bg-indigo-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-              {view.variant} · {variantLabel}
+              {variant} · {variantLabel}
             </span>
           </div>
         </header>
@@ -472,7 +319,7 @@ export default function BriefingPage() {
           >
             {showNav ? (
               <a
-                href={view.feedbackUrl}
+                href={feedbackUrl}
                 className={`${actionButtonClass} ${actionButtonStateClass(false)}`}
               >
                 <span className="block">여정 종료 후 피드백 남기기</span>
