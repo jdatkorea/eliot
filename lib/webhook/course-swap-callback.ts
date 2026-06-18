@@ -97,6 +97,7 @@ export async function deliverCourseSwap(
   const attemptIndex = state.swap_attempt_index;
 
   const briefingData = await fetchBriefingData();
+  const config = briefingData.config ?? DEFAULT_APP_CONFIG;
   const swapResult = swapSpotAtIndex({
     places: briefingData.places,
     coursePlaceIds,
@@ -106,6 +107,8 @@ export async function deliverCourseSwap(
     moodTags: state.mood_tags,
     tripId,
     attemptIndex,
+    weatherConditions: briefing.weather.conditions,
+    weatherExclusionRules: config.weather_exclusion_rules,
   });
 
   if (!swapResult.swappedPlace) {
@@ -123,7 +126,7 @@ export async function deliverCourseSwap(
     dayIndex,
     blockIndex,
     swappedPlace: swapResult.swappedPlace,
-    config: briefingData.config ?? DEFAULT_APP_CONFIG,
+    config,
     moodTags: state.mood_tags,
   });
 

@@ -1,6 +1,6 @@
-import { canonicalizeDestination } from "./course-generator";
+import { isExcludedByWeatherRules, passesRegionGate } from "./course-generator";
 import { buildSwapSeed, deterministicIndex } from "./deterministic-index";
-import type { Place, PlaceCategory } from "./types";
+import type { Place, PlaceCategory, WeatherCondition, WeatherExclusionRule } from "./types";
 
 export type SwapSpotParams = {
   places: Place[];
@@ -11,6 +11,9 @@ export type SwapSpotParams = {
   moodTags?: string[];
   tripId: string;
   attemptIndex: number;
+  /** 폭염 등 활성 조건 — course-generator와 동일 하드-제외 규칙을 swap 후보에도 적용 */
+  weatherConditions?: WeatherCondition[];
+  weatherExclusionRules?: WeatherExclusionRule[];
 };
 
 export type SwapSpotResult = {
@@ -18,15 +21,6 @@ export type SwapSpotResult = {
   previousPlaceId: string;
   swappedPlace: Place | null;
 };
-
-function passesRegionGate(
-  place: Place,
-  homeRegion: string,
-  moodTags: string[],
-): boolean {
-  if (moodTags.includes("extend_range")) return true;
-  return canonicalizeDestination(place.destination) === canonicalizeDestination(homeRegion);
-}
 
 function findPlaceById(places: Place[], id: string): Place | undefined {
   return places.find((place) => place.id === id);
@@ -41,11 +35,14 @@ function sameCategoryCandidates(
   },
 ): Place[] {
   const moodTags = params.moodTags ?? [];
+  const activeConditions = params.weatherConditions ?? [];
+  const rules = params.weatherExclusionRules ?? [];
   return places.filter((place) => {
     if (place.category !== category) return false;
     if (place.id === params.currentPlaceId) return false;
     if (params.excludeIds.has(place.id)) return false;
     if (params.mode === "family" && place.no_kids_zone === true) return false;
+    if (isExcludedByWeatherRules(place, activeConditions, rules)) return false;
     if (!passesRegionGate(place, params.destination, moodTags)) return false;
     return true;
   });
@@ -71,6 +68,8 @@ export function swapSpotAtIndex(params: SwapSpotParams): SwapSpotResult {
     destination,
     mode,
     moodTags: params.moodTags,
+    weatherConditions: params.weatherConditions,
+    weatherExclusionRules: params.weatherExclusionRules,
     excludeIds,
     currentPlaceId: previousPlaceId,
   });

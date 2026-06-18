@@ -63,6 +63,28 @@ export async function getFeedback(): Promise<FeedbackLog> {
   return migrateLegacyFeedback(parsed);
 }
 
+/**
+ * INVARIANT 정리(2026-06-18): 과거 lib/engine/trip-context.ts에 있던 함수 —
+ * getFeedback() 호출(CloudStorage IO)이 엔진 디렉토리 경계를 위반했다.
+ * 호출부(lib/webapp/submit-trip-request.ts)가 이미 엔진 호출 *이전에*
+ * await해서 순수 데이터(PriorTripFeedback)로 변환해 넘기고 있었으므로,
+ * IO와 엔진 사이의 경계 위반은 이 함수가 엔진 폴더에 있다는 사실 자체였다 —
+ * getFeedback()과 같은 파일로 옮겨 경계를 실제로 맞춘다.
+ */
+export async function resolvePriorFeedback(): Promise<
+  PriorTripFeedback | undefined
+> {
+  const log = await getFeedback();
+  if (!log.entries.length) return undefined;
+
+  for (let index = log.entries.length - 1; index >= 0; index -= 1) {
+    const entry = log.entries[index];
+    if (entry.place_category) return entry;
+  }
+
+  return log.entries[log.entries.length - 1];
+}
+
 export async function saveFeedback(entry: PriorTripFeedback): Promise<boolean> {
   if (typeof window === "undefined" || !window.Telegram?.WebApp) {
     return false;

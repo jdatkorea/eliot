@@ -4,7 +4,6 @@ import {
   FIXED_DURATION_HOURS,
   FIXED_OPERATION_TIME_LABEL,
 } from "@/lib/webapp/build-trip-request";
-import { getFeedback } from "@/lib/webapp/feedback-storage";
 import { resolveDestinationFromCoords } from "@/lib/webapp/telegram-native";
 import type {
   Briefing,
@@ -13,6 +12,7 @@ import type {
   GenerateBriefingInput,
   PriorTripFeedback,
   TripRequest,
+  WeatherCondition,
 } from "./types";
 
 export type TripBriefingContext = {
@@ -24,20 +24,34 @@ export type TripBriefingContext = {
   constraints?: string;
 };
 
+/**
+ * 과거 버그(T3 이전): heatLike(폭염/한파/자외선 통째로 한 깃발)일 때
+ * rain_prob을 10%로 강제 하향해 "위험 신호를 낮은 강수확률로 위장"했다 —
+ * 폭염 텍스트가 들어와도 야외 블록에 우천 경고조차 안 뜨고, 폭염 자체에 대한
+ * 경고/제외는 아예 없었다. rain_prob과 폭염/한파/자외선은 서로 독립적인
+ * 축이므로 섞지 않는다 — rain_prob은 강수 텍스트만으로 판정하고, 폭염 등은
+ * 별도 conditions 배열로 노출해 course-generator의 하드-제외 규칙이 직접
+ * 소비한다(단순 텍스트 안내로 대체하지 않음).
+ */
 export function parseWeatherFromText(text: string): Briefing["weather"] {
   const trimmed = text.trim();
   const tempRange = trimmed.match(/(\d+)\s*도\s*[~\-–]\s*(\d+)\s*도/);
   const rainLike = /비|우천|폭우|소나기|장마/i.test(trimmed);
-  const heatLike = /폭염|한파|자외선/i.test(trimmed);
   const summary = trimmed.split(",")[0]?.trim() || trimmed || "맑음";
+
+  const conditions: WeatherCondition[] = [];
+  if (/폭염/i.test(trimmed)) conditions.push("heatwave");
+  if (/한파/i.test(trimmed)) conditions.push("coldwave");
+  if (/자외선/i.test(trimmed)) conditions.push("uv_high");
 
   return {
     summary,
     temp: tempRange
       ? `${tempRange[1]}~${tempRange[2]}°C`
       : summary,
-    rain_prob: rainLike ? "70%" : heatLike ? "10%" : "30%",
+    rain_prob: rainLike ? "70%" : "30%",
     advice: trimmed || "날씨를 확인하고 준비물을 챙기세요.",
+    ...(conditions.length > 0 ? { conditions } : {}),
   };
 }
 
@@ -56,20 +70,6 @@ export function resolveHomeRegionFromTripRequest(
   }
 
   return FIXED_DESTINATION;
-}
-
-export async function resolvePriorFeedback(): Promise<
-  PriorTripFeedback | undefined
-> {
-  const log = await getFeedback();
-  if (!log.entries.length) return undefined;
-
-  for (let index = log.entries.length - 1; index >= 0; index -= 1) {
-    const entry = log.entries[index];
-    if (entry.place_category) return entry;
-  }
-
-  return log.entries[log.entries.length - 1];
 }
 
 export function feedbackEventsFromFeedbackLog(

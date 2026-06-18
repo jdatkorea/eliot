@@ -25,6 +25,11 @@ export type Block = {
   dot: "default" | "accent" | "green";
   weather_note?: string;
   weather_backup?: { place_id: string; reason: string };
+  /** T4(2026-06-18): phase별 시계 시각 — config.phase_durations 비율 배분 */
+  start_time?: string;
+  end_time?: string;
+  /** T5(2026-06-18): has_nursing_room=true 장소(family 모드)에 노출하는 케어 포인트 */
+  care_note?: string;
 };
 
 export type TripLocation = {
@@ -59,10 +64,25 @@ export type BriefingContextMeta = {
   prior_trip_feedback?: PriorTripFeedback;
 };
 
+/**
+ * 폭염/한파/자외선 — rain_prob과는 독립적인 별도 축. 과거 parseWeatherFromText가
+ * heatwave를 rain_prob 하향(10%)으로 흉내 내던 버그를 T3(2026-06-18)에서
+ * 제거하고, 이 명시적 조건 배열로 대체했다.
+ */
+export type WeatherCondition = "heatwave" | "coldwave" | "uv_high";
+
+export type WeatherInfo = {
+  summary: string;
+  temp: string;
+  rain_prob: string;
+  advice: string;
+  conditions?: WeatherCondition[];
+};
+
 export type Briefing = {
   destination: string;
   date_label: string;
-  weather: { summary: string; temp: string; rain_prob: string; advice: string };
+  weather: WeatherInfo;
   days: { label: string; title: string; blocks: Block[] }[];
   checklist: string[];
   context_meta?: BriefingContextMeta;
@@ -98,11 +118,33 @@ export type AppConfigTemplates = {
   >;
 };
 
+/**
+ * 날씨 조건 → 장소 하드-제외 production rule(config DSL, {when, then} 형태).
+ * 점수 가중치가 아니라 IF-THEN 배제 — "안내문만 붙이고 그대로 포함"은
+ * 이 규칙의 대체가 될 수 없다(T3, 2026-06-18).
+ */
+export type WeatherExclusionRule = {
+  when: { weather_condition: WeatherCondition; is_outdoor: boolean };
+  then: { exclude: true };
+};
+
 export type AppConfig = {
   mood_tags: string[];
   mood_tag_effects: Record<string, Partial<MoodTagEffects>>;
   templates: AppConfigTemplates;
   rain_prob_threshold: number;
+  weather_exclusion_rules: WeatherExclusionRule[];
+  /**
+   * phase(TimeLabel)별 상대 가중치 — 절대 분(分)이 아니라 비율이다. 실제
+   * 배분 시 전체 작전시간(duration_hours×60)에 가중치 비율로 곱해 합이
+   * 정확히 window와 일치하도록 만든다(T4, 2026-06-18). 누락된 label은 1로
+   * 처리한다.
+   */
+  phase_durations: Partial<Record<TimeLabel, number>>;
+  /** 명시적 departure_time이 없을 때(현재 실제 WebApp 플로우는 항상 이 경우) 사용하는 기본 출발 시각("HH:MM") */
+  default_departure_time: string;
+  /** family 모드에서 stroller_friendly=true 장소에 더하는 weightedScore 가산점(T5, 2026-06-18) */
+  stroller_friendly_bonus: number;
 };
 
 export type Place = {
