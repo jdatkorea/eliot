@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
 import { applyTelegramTheme } from "@/lib/webapp/apply-telegram-theme";
 import {
   buildTripRequest,
@@ -41,6 +43,10 @@ function applyTelegramInitDate(
     trip_date: formatIsoDateKst(messageDate),
     sunset_time: approximateSunsetKst(messageDate),
   };
+}
+
+function formatDestinationDisplay(destination: string): string {
+  return destination === "송도" ? "송도 권역" : destination;
 }
 
 export default function WebAppForm() {
@@ -116,7 +122,7 @@ export default function WebAppForm() {
     setLocationStatus(
       destination === "송도"
         ? "송도 권역 확인 — 목적지 자동 설정됨"
-        : `목적지: ${destination}`,
+        : `목적지: ${formatDestinationDisplay(destination)}`,
     );
   }, [webApp]);
 
@@ -173,9 +179,9 @@ export default function WebAppForm() {
     : null;
 
   return (
-    <div className="webapp-root min-h-screen px-4 pb-28 pt-3">
+    <div className="min-h-screen bg-[var(--tg-bg-color)] px-4 pb-28 pt-3 text-[var(--tg-text-color)] text-left">
       <header className="mb-4">
-        <h1 className="webapp-title text-lg font-semibold">여정 브리핑</h1>
+        <h1 className="text-lg font-semibold">여정 브리핑</h1>
         <p className="webapp-subtitle mt-1 text-sm leading-snug">
           고정 조건을 확인하고 오늘 변수만 조정한 뒤 여정을 생성하세요.
         </p>
@@ -191,7 +197,7 @@ export default function WebAppForm() {
           handleSubmit();
         }}
       >
-        <section className="webapp-card">
+        <Card tone="telegram">
           <h2 className="webapp-section-title mb-2 text-xs font-semibold">
             고정 조건
           </h2>
@@ -202,28 +208,30 @@ export default function WebAppForm() {
             베이스캠프: {FIXED_BASE_CAMP}
           </p>
           <p className="webapp-hint mt-1 text-xs">출발/도착지 고정</p>
-        </section>
+        </Card>
 
-        <section className="webapp-card space-y-3">
+        <Card tone="telegram" className="space-y-3">
           <h2 className="webapp-section-title text-xs font-semibold">
             오늘의 변수
           </h2>
 
           <div>
             <span className="webapp-label text-xs">현재 위치</span>
-            <button
+            <Button
               type="button"
-              className="webapp-location-btn mt-1 w-full"
+              variant="secondary"
+              tone="telegram"
+              fullWidth
+              className="mt-1"
               onClick={() => {
                 void handleRequestLocation();
               }}
             >
-              request_location
-            </button>
-            {form.location ? (
+              현재 위치 가져오기
+            </Button>
+            {form.destination ? (
               <p className="webapp-hint mt-1 text-xs">
-                GPS: {form.location.lat.toFixed(5)}, {form.location.lng.toFixed(5)}
-                {form.destination ? ` · 목적지: ${form.destination}` : ""}
+                목적지: {formatDestinationDisplay(form.destination)}
               </p>
             ) : null}
             {locationStatus ? (
@@ -317,16 +325,18 @@ export default function WebAppForm() {
               onBlur={handleFieldBlur}
             />
           </label>
-        </section>
+        </Card>
 
         {!isTelegram ? (
-          <button
+          <Button
             type="submit"
-            className="webapp-submit w-full"
+            variant="primary"
+            tone="telegram"
+            fullWidth
             disabled={!formValid || submitted || isSubmitting}
           >
             {submitted ? "전송됨 (콘솔 확인)" : "여정 생성"}
-          </button>
+          </Button>
         ) : null}
 
         {submitted && !isTelegram ? (
@@ -335,98 +345,6 @@ export default function WebAppForm() {
           </p>
         ) : null}
       </form>
-
-      <style jsx global>{`
-        :root {
-          --tg-bg-color: #ffffff;
-          --tg-text-color: #1a1a1a;
-          --tg-hint-color: #8e8e93;
-          --tg-link-color: #2481cc;
-          --tg-button-color: #2481cc;
-          --tg-button-text-color: #ffffff;
-          --tg-secondary-bg-color: #f2f2f7;
-          --tg-section-bg-color: #ffffff;
-          --tg-section-header-text-color: #6d6d72;
-        }
-
-        .webapp-root {
-          background: var(--tg-bg-color);
-          color: var(--tg-text-color);
-          text-align: left;
-        }
-
-        .webapp-subtitle,
-        .webapp-label,
-        .webapp-hint {
-          color: var(--tg-hint-color);
-        }
-
-        .webapp-section-title {
-          color: var(--tg-section-header-text-color);
-        }
-
-        .webapp-card {
-          background: var(--tg-section-bg-color);
-          border-radius: 12px;
-          padding: 14px;
-        }
-
-        .webapp-readonly-line {
-          color: var(--tg-text-color);
-          line-height: 1.4;
-        }
-
-        .webapp-input {
-          background: var(--tg-secondary-bg-color);
-          color: var(--tg-text-color);
-          border: 1px solid transparent;
-          border-radius: 10px;
-          padding: 10px 12px;
-          font-size: 15px;
-        }
-
-        .webapp-textarea {
-          line-height: 1.4;
-          min-height: 84px;
-        }
-
-        .webapp-input:focus {
-          outline: 2px solid var(--tg-link-color);
-          outline-offset: 0;
-        }
-
-        .webapp-intensity-value {
-          color: var(--tg-text-color);
-        }
-
-        .webapp-slider {
-          accent-color: var(--tg-button-color);
-          height: 4px;
-        }
-
-        .webapp-location-btn {
-          border-radius: 10px;
-          padding: 10px 12px;
-          font-size: 15px;
-          font-weight: 500;
-          background: var(--tg-secondary-bg-color);
-          color: var(--tg-link-color);
-          border: 1px solid var(--tg-link-color);
-        }
-
-        .webapp-submit {
-          border-radius: 12px;
-          padding: 14px;
-          font-size: 16px;
-          font-weight: 600;
-          background: var(--tg-button-color);
-          color: var(--tg-button-text-color);
-        }
-
-        .webapp-submit:disabled {
-          opacity: 0.45;
-        }
-      `}</style>
     </div>
   );
 }

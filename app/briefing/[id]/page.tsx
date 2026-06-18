@@ -38,6 +38,7 @@ export default async function BriefingPage({
       variantLabel={resolved.variantLabel}
       variant={resolved.variant}
       feedbackUrl={resolved.feedbackUrl}
+      dual={resolved.dual}
     />
   );
 }

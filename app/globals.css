@@ -3,6 +3,17 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --eliot-radius: 12px;
+  --eliot-radius-sm: 10px;
+  --tg-bg-color: #ffffff;
+  --tg-text-color: #1a1a1a;
+  --tg-hint-color: #8e8e93;
+  --tg-link-color: #2481cc;
+  --tg-button-color: #2481cc;
+  --tg-button-text-color: #ffffff;
+  --tg-secondary-bg-color: #f2f2f7;
+  --tg-section-bg-color: #ffffff;
+  --tg-section-header-text-color: #6d6d72;
 }
 
 @theme inline {
@@ -22,5 +33,48 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.webapp-subtitle,
+.webapp-label,
+.webapp-hint {
+  color: var(--tg-hint-color);
+}
+
+.webapp-section-title {
+  color: var(--tg-section-header-text-color);
+}
+
+.webapp-readonly-line {
+  color: var(--tg-text-color);
+  line-height: 1.4;
+}
+
+.webapp-input {
+  background: var(--tg-secondary-bg-color);
+  color: var(--tg-text-color);
+  border: 1px solid transparent;
+  border-radius: var(--eliot-radius-sm);
+  padding: 10px 12px;
+  font-size: 15px;
+}
+
+.webapp-textarea {
+  line-height: 1.4;
+  min-height: 84px;
+}
+
+.webapp-input:focus {
+  outline: 2px solid var(--tg-link-color);
+  outline-offset: 0;
+}
+
+.webapp-intensity-value {
+  color: var(--tg-text-color);
+}
+
+.webapp-slider {
+  accent-color: var(--tg-button-color);
+  height: 4px;
 }
