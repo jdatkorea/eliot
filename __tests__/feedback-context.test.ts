@@ -97,13 +97,12 @@ describe("toContextTags", () => {
 });
 
 describe("buildTelegramLinkMessage", () => {
-  it("A/B 브리핑 링크와 동적 피드백 인라인 링크를 포함", () => {
+  it("단일 브리핑 링크와 동적 피드백 인라인 링크를 포함", () => {
     const normalized = normalize(tripRequest);
     const feedbackUrl = buildFeedbackUrl(
       createFeedbackLinkParams(normalized, "trip-live"),
       "http://localhost:3000",
     );
-
     const { text, parse_mode } = buildTelegramLinkMessage({
       urlA: "http://localhost:3000/briefing#data=a&variant=A",
       urlB: "http://localhost:3000/briefing#data=b&variant=B",
@@ -113,8 +112,11 @@ describe("buildTelegramLinkMessage", () => {
     });
 
     expect(parse_mode).toBe("HTML");
-    expect(text).toContain("A · 근거리·기본형 브리핑 보기");
-    expect(text).toContain("B · 원거리·확장형 브리핑 보기");
+    expect(text).toContain("💡 웹뷰에서 두 가지 코스 옵션을 비교할 수 있습니다.");
+    expect(text).toContain('href="http://localhost:3000/briefing#data=a&amp;variant=A"');
+    expect(text).toContain("🔗 여정 브리핑 확인하기");
+    expect(text).not.toContain("A · 근거리·기본형 브리핑 보기");
+    expect(text).not.toContain("B · 원거리·확장형 브리핑 보기");
     expect(text).toContain("여정 종료 후 피드백 남기기");
     expect(text).not.toContain("\t");
     expect(text).not.toContain("---");
@@ -135,6 +137,7 @@ describe("buildTelegramLinkMessage", () => {
 
     expect(text).toContain("<pre>");
     expect(text).toContain("여정 명세서 · 패밀리타임");
+    expect(text).toContain("💡 웹뷰에서 두 가지 코스 옵션을 비교할 수 있습니다.");
     expect(text).not.toContain("\t");
   });
 });

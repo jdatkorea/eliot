@@ -132,7 +132,7 @@ function buildBriefingUrl(
   variant: "A" | "B",
 ): string {
   const normalizedBase = baseUrl.replace(/\/$/, "");
-  return `${normalizedBase}/briefing/${id}?variant=${variant}`;
+  return `${normalizedBase}/briefing/${id}?variant=${variant}&_ts=${Date.now()}`;
 }
 
 export async function buildBriefingLinks(

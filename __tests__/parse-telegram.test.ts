@@ -116,8 +116,8 @@ describe("parseWebhookBody (Telegram web_app_data)", () => {
     );
     const links = await buildBriefingLinks(parsed, "http://localhost:3000");
 
-    expect(links.urlA).toMatch(/^http:\/\/localhost:3000\/briefing\/.+\?variant=A$/);
-    expect(links.urlB).toMatch(/^http:\/\/localhost:3000\/briefing\/.+\?variant=B$/);
+    expect(links.urlA).toMatch(/^http:\/\/localhost:3000\/briefing\/.+\?variant=A&_ts=\d+$/);
+    expect(links.urlB).toMatch(/^http:\/\/localhost:3000\/briefing\/.+\?variant=B&_ts=\d+$/);
     expect(links.briefingA.context_meta?.weather_text).toBe(
       DEFAULT_WEBAPP_FORM.weather,
     );

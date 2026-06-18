@@ -1,7 +1,10 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import { cn } from "@/components/ui/cn";
 import type { FailureReason } from "@/lib/engine/types";
 import {
   DEFAULT_SUBJECT_ID,
@@ -16,34 +19,138 @@ import {
   validateFeedbackForm,
 } from "@/lib/feedback/validate";
 
+type Sentiment = "good" | "bad" | null;
+
+const NEGATIVE_FAILURE_REASONS = FAILURE_REASONS.filter(
+  (reason) => reason !== "none",
+);
+
+function closeTelegramWebApp(): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    const webApp = (
+      window as Window & { Telegram?: { WebApp?: { close?: () => void } } }
+    ).Telegram?.WebApp;
+
+    if (webApp && typeof webApp.close === "function") {
+      webApp.close();
+    }
+  } catch {
+    // Telegram 미니앱이 아닌 환경에서는 무시
+  }
+}
+
 function FeedbackForm() {
   const searchParams = useSearchParams();
   const linkParams = parseFeedbackLinkParams(searchParams);
   const subjectId = linkParams.subject_id ?? DEFAULT_SUBJECT_ID;
   const tripId = linkParams.trip_id ?? V0_TRIP_ID;
 
-  const [satisfaction, setSatisfaction] = useState<number | null>(null);
+  const [sentiment, setSentiment] = useState<Sentiment>(null);
   const [failureReason, setFailureReason] = useState<FailureReason | null>(
     null,
   );
   const [note, setNote] = useState("");
-  const [routeVariant, setRouteVariant] = useState<"A" | "B" | null>(
+  const [routeVariant] = useState<"A" | "B" | null>(
     linkParams.route_variant ?? null,
   );
   const [fieldErrors, setFieldErrors] = useState<{
-    satisfaction?: string;
     failure_reason?: string;
   }>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [showSuccessFlash, setShowSuccessFlash] = useState(false);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  const submitFeedback = useCallback(
+    async (payload: {
+      satisfaction: number;
+      failure_reason: FailureReason;
+      note: string | null;
+    }) => {
+      setSubmitError(null);
+      setSubmitting(true);
+
+      try {
+        const response = await fetch("/api/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            satisfaction: payload.satisfaction,
+            failure_reason: payload.failure_reason,
+            note: payload.note,
+            subject_id: subjectId,
+            trip_id: tripId,
+            context_tags: toContextTags({
+              mood_tags: linkParams.mood_tags ?? [],
+              mood_intensity: linkParams.mood_intensity,
+              mode: linkParams.mode,
+              return_location: linkParams.return_location,
+              route_variant: routeVariant ?? undefined,
+            }),
+          }),
+        });
+
+        const result = (await response.json()) as {
+          ok: boolean;
+          error?: string;
+        };
+
+        if (!response.ok || !result.ok) {
+          throw new Error(result.error ?? "피드백 저장에 실패했습니다.");
+        }
+
+        setShowSuccessFlash(true);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "피드백 저장 중 오류가 발생했습니다.";
+        setSubmitError(message);
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [linkParams, routeVariant, subjectId, tripId],
+  );
+
+  useEffect(() => {
+    if (!showSuccessFlash) return;
+
+    const timer = window.setTimeout(closeTelegramWebApp, 500);
+    return () => window.clearTimeout(timer);
+  }, [showSuccessFlash]);
+
+  async function handleGoodTap() {
+    if (submitting) return;
+
+    setSentiment("good");
+    setFailureReason(null);
+    setNote("");
+    setFieldErrors({});
+
+    await submitFeedback({
+      satisfaction: 5,
+      failure_reason: "none",
+      note: null,
+    });
+  }
+
+  function handleBadTap() {
+    if (submitting) return;
+
+    setSentiment("bad");
+    setFailureReason(null);
+    setFieldErrors({});
+    setSubmitError(null);
+  }
+
+  async function handleNegativeSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitError(null);
 
     const errors = validateFeedbackForm({
-      satisfaction,
+      satisfaction: 2,
       failure_reason: failureReason,
       note,
     });
@@ -54,210 +161,162 @@ function FeedbackForm() {
       return;
     }
 
-    setSubmitting(true);
-
-    try {
-      const response = await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          satisfaction,
-          failure_reason: failureReason,
-          note: note.trim() || null,
-          subject_id: subjectId,
-          trip_id: tripId,
-          context_tags: toContextTags({
-            mood_tags: linkParams.mood_tags ?? [],
-            mood_intensity: linkParams.mood_intensity,
-            mode: linkParams.mode,
-            return_location: linkParams.return_location,
-            route_variant: routeVariant ?? undefined,
-          }),
-        }),
-      });
-
-      const result = (await response.json()) as {
-        ok: boolean;
-        error?: string;
-      };
-
-      if (!response.ok || !result.ok) {
-        throw new Error(result.error ?? "피드백 저장에 실패했습니다.");
-      }
-
-      setSubmitted(true);
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "피드백 저장 중 오류가 발생했습니다.";
-      setSubmitError(message);
-    } finally {
-      setSubmitting(false);
-    }
+    await submitFeedback({
+      satisfaction: 2,
+      failure_reason: failureReason!,
+      note: note.trim() || null,
+    });
   }
 
-  if (submitted) {
-    return (
-      <main className="mx-auto flex min-h-full w-full max-w-lg flex-1 flex-col justify-center px-4 py-10">
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-10 text-center dark:border-emerald-900 dark:bg-emerald-950/40">
-          <p className="text-lg font-semibold text-emerald-800 dark:text-emerald-200">
-            피드백이 저장되었습니다
-          </p>
-          <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-300">
-            소중한 의견이 다음 여정에 반영됩니다.
-          </p>
-        </div>
-      </main>
-    );
-  }
+  const showNegativeDetails = sentiment === "bad";
 
   return (
-    <main className="mx-auto flex min-h-full w-full max-w-lg flex-1 flex-col px-4 py-8">
-      <header className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight">여정 피드백</h1>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          오늘 여정은 어떠셨나요? 솔직한 피드백이 다음 브리핑을 더 좋게
-          만듭니다.
-        </p>
-      </header>
+    <main className="relative mx-auto flex min-h-full w-full max-w-lg flex-1 flex-col justify-center bg-[var(--tg-bg-color)] px-4 py-8 text-[var(--tg-text-color)]">
+      <Card tone="telegram" className="space-y-5">
+        <header>
+          <h1 className="text-lg font-semibold tracking-tight">여정 피드백</h1>
+          <p className="webapp-subtitle mt-1 text-sm leading-snug">
+            오늘 여정은 어떠셨나요?
+          </p>
+        </header>
 
-      <form onSubmit={handleSubmit} className="flex flex-1 flex-col gap-8">
-        <section>
-          <h2 className="mb-3 text-base font-semibold">
-            전체 만족도 <span className="text-red-500">*</span>
-          </h2>
-          <div className="grid grid-cols-5 gap-2">
-            {[1, 2, 3, 4, 5].map((value) => {
-              const selected = satisfaction === value;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => {
-                    setSatisfaction(value);
-                    setFieldErrors((prev) => ({
-                      ...prev,
-                      satisfaction: undefined,
-                    }));
-                  }}
-                  className={`min-h-14 rounded-xl border text-lg font-semibold transition-colors ${
-                    selected
-                      ? "border-sky-600 bg-sky-600 text-white"
-                      : "border-zinc-300 bg-white text-zinc-800 hover:border-sky-400 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-                  }`}
-                >
-                  {value}
-                </button>
-              );
-            })}
-          </div>
-          {fieldErrors.satisfaction ? (
-            <p className="mt-2 text-sm text-red-600" role="alert">
-              {fieldErrors.satisfaction}
-            </p>
-          ) : null}
-        </section>
-
-        <section>
-          <h2 className="mb-3 text-base font-semibold">
-            아쉬웠던 점 <span className="text-red-500">*</span>
-          </h2>
-          <div className="flex flex-col gap-2">
-            {FAILURE_REASONS.map((reason) => {
-              const selected = failureReason === reason;
-              return (
-                <button
-                  key={reason}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => {
-                    setFailureReason(reason);
-                    setFieldErrors((prev) => ({
-                      ...prev,
-                      failure_reason: undefined,
-                    }));
-                  }}
-                  className={`min-h-14 rounded-xl border px-4 text-left text-base font-medium transition-colors ${
-                    selected
-                      ? "border-sky-600 bg-sky-50 text-sky-900 dark:bg-sky-950/50 dark:text-sky-100"
-                      : "border-zinc-300 bg-white text-zinc-800 hover:border-sky-400 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-                  }`}
-                >
-                  {FAILURE_REASON_LABELS[reason]}
-                </button>
-              );
-            })}
-          </div>
-          {fieldErrors.failure_reason ? (
-            <p className="mt-2 text-sm text-red-600" role="alert">
-              {fieldErrors.failure_reason}
-            </p>
-          ) : null}
-        </section>
-
-        <section>
-          <h2 className="mb-3 text-base font-semibold">
-            선택한 브리핑 <span className="font-normal text-zinc-500">(선택)</span>
-          </h2>
-          <div className="grid grid-cols-2 gap-2">
-            {(["A", "B"] as const).map((variant) => {
-              const selected = routeVariant === variant;
-              return (
-                <button
-                  key={variant}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() =>
-                    setRouteVariant((current) =>
-                      current === variant ? null : variant,
-                    )
-                  }
-                  className={`min-h-14 rounded-xl border px-4 text-base font-medium transition-colors ${
-                    selected
-                      ? "border-sky-600 bg-sky-50 text-sky-900 dark:bg-sky-950/50 dark:text-sky-100"
-                      : "border-zinc-300 bg-white text-zinc-800 hover:border-sky-400 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-                  }`}
-                >
-                  {variant}안
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        <section>
-          <label
-            htmlFor="feedback-note"
-            className="mb-3 block text-base font-semibold"
+        <div className="flex flex-col gap-3">
+          <Button
+            type="button"
+            variant="primary"
+            tone="telegram"
+            fullWidth
+            disabled={submitting}
+            className={cn(
+              "min-h-16 py-5 text-lg",
+              sentiment === "good" &&
+                "ring-2 ring-[var(--tg-link-color)] ring-offset-2 ring-offset-[var(--tg-section-bg-color)]",
+            )}
+            onClick={() => {
+              void handleGoodTap();
+            }}
           >
-            추가 메모 <span className="font-normal text-zinc-500">(선택)</span>
-          </label>
-          <textarea
-            id="feedback-note"
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            rows={4}
-            placeholder="더 알려주고 싶은 점이 있다면 적어 주세요."
-            className="w-full resize-none rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base text-zinc-800 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-          />
-        </section>
+            좋음
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            tone="telegram"
+            fullWidth
+            disabled={submitting}
+            className={cn(
+              "min-h-16 py-5 text-lg",
+              sentiment === "bad" &&
+                "ring-2 ring-[var(--tg-link-color)] ring-offset-2 ring-offset-[var(--tg-section-bg-color)]",
+            )}
+            onClick={handleBadTap}
+          >
+            아쉬움
+          </Button>
+        </div>
 
-        {submitError ? (
+        <div
+          className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+            showNegativeDetails ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          }`}
+        >
+          <div className="overflow-hidden">
+            <form
+              onSubmit={(event) => {
+                void handleNegativeSubmit(event);
+              }}
+              className="space-y-4 pt-1"
+            >
+              <section>
+                <h2 className="webapp-section-title text-xs font-semibold">
+                  어떤 점이 아쉬웠나요?
+                </h2>
+                <div className="mt-2 flex flex-col gap-2">
+                  {NEGATIVE_FAILURE_REASONS.map((reason) => (
+                    <Button
+                      key={reason}
+                      type="button"
+                      variant="secondary"
+                      tone="telegram"
+                      fullWidth
+                      className={cn(
+                        "min-h-12 text-left",
+                        failureReason === reason &&
+                          "ring-2 ring-[var(--tg-link-color)] ring-offset-1 ring-offset-[var(--tg-section-bg-color)]",
+                      )}
+                      onClick={() => {
+                        setFailureReason(reason);
+                        setFieldErrors((prev) => ({
+                          ...prev,
+                          failure_reason: undefined,
+                        }));
+                      }}
+                    >
+                      {FAILURE_REASON_LABELS[reason]}
+                    </Button>
+                  ))}
+                </div>
+                {fieldErrors.failure_reason ? (
+                  <p className="mt-2 text-sm text-red-600" role="alert">
+                    {fieldErrors.failure_reason}
+                  </p>
+                ) : null}
+              </section>
+
+              <section>
+                <label
+                  htmlFor="feedback-note"
+                  className="webapp-section-title block text-xs font-semibold"
+                >
+                  추가로 남기고 싶은 말{" "}
+                  <span className="font-normal">(선택)</span>
+                </label>
+                <textarea
+                  id="feedback-note"
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  rows={4}
+                  placeholder="더 알려주고 싶은 점이 있다면 적어 주세요."
+                  className="webapp-input webapp-textarea mt-2 w-full resize-none"
+                />
+              </section>
+
+              {submitError ? (
+                <p className="text-sm text-red-600" role="alert">
+                  {submitError}
+                </p>
+              ) : null}
+
+              <Button
+                type="submit"
+                variant="primary"
+                tone="telegram"
+                fullWidth
+                disabled={submitting}
+                className="min-h-14"
+              >
+                {submitting ? "저장 중…" : "피드백 보내기"}
+              </Button>
+            </form>
+          </div>
+        </div>
+
+        {sentiment === "good" && submitError ? (
           <p className="text-sm text-red-600" role="alert">
             {submitError}
           </p>
         ) : null}
+      </Card>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="mt-auto min-h-14 rounded-xl bg-sky-600 text-base font-semibold text-white transition-colors hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
+      {showSuccessFlash ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--tg-bg-color)]/95"
+          role="status"
+          aria-live="polite"
         >
-          {submitting ? "저장 중…" : "피드백 보내기"}
-        </button>
-      </form>
+          <p className="text-lg font-semibold">제출 완료 ✔️</p>
+        </div>
+      ) : null}
     </main>
   );
 }
@@ -266,8 +325,8 @@ export default function FeedbackPage() {
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-full items-center justify-center px-4 py-10">
-          <p className="text-sm text-zinc-500">불러오는 중…</p>
+        <main className="flex min-h-full items-center justify-center bg-[var(--tg-bg-color)] px-4 py-10">
+          <p className="webapp-subtitle text-sm">불러오는 중…</p>
         </main>
       }
     >
